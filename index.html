@@ -68,6 +68,24 @@ const parseTime = t => { if(!t||typeof t!=='string'||t.indexOf(':')<0)return 0; 
 const diffH = (s,e) => { const d=parseTime(e)-parseTime(s); return d>0?Math.round(d/6)/10:0; };
 const fmtMin = m => { m=Math.max(0,Math.min(24*60,m)); return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'); };
 const validShift = s => s&&s.employeeId&&s.date&&s.start&&s.end;
+const monthKey = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+const monthsBetween = (fromKey,toKey) => { const[fy,fm]=fromKey.split('-').map(Number),[ty,tm]=toKey.split('-').map(Number); return (ty-fy)*12+(tm-fm); };
+// Jours fériés français (fixes + basés sur Pâques)
+const _holiCache={};
+function frenchHolidays(year){
+  if(_holiCache[year])return _holiCache[year];
+  // Pâques (algorithme de Meeus/Butcher)
+  const a=year%19,b=Math.floor(year/100),c=year%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),mo=Math.floor((h+l-7*m+114)/31),da=((h+l-7*m+114)%31)+1;
+  const easter=new Date(year,mo-1,da);
+  const add=(base,n)=>{const x=new Date(base);x.setDate(x.getDate()+n);return ymd(x);};
+  const o={};
+  o[year+'-01-01']='Jour de l\'An';o[year+'-05-01']='Fête du Travail';o[year+'-05-08']='Victoire 1945';
+  o[year+'-07-14']='Fête nationale';o[year+'-08-15']='Assomption';o[year+'-11-01']='Toussaint';
+  o[year+'-11-11']='Armistice';o[year+'-12-25']='Noël';
+  o[add(easter,1)]='Lundi de Pâques';o[add(easter,39)]='Ascension';o[add(easter,50)]='Lundi de Pentecôte';
+  _holiCache[year]=o;return o;
+}
+const holidayName = ds => ds?(frenchHolidays(+ds.slice(0,4))[ds]||''):'';
 // Hachage du mot de passe (SHA-256 si dispo, sinon repli simple)
 async function hashPw(s){
   try{ if(window.crypto&&crypto.subtle){ const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('cs:'+s)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join(''); } }catch(e){}
@@ -90,15 +108,15 @@ const COLORS = {
 const empColor = id => COLORS[id]||{bg:'bg-gray-100',text:'text-gray-700',dot:'bg-gray-400'};
 
 const SEED_USERS = [
-  {id:'julien',  name:'Julien',  role:'patron',  email:'julien@cafe.fr',  hoursPerWeek:0, cpBalance:0,   contractType:'CDI',      hasAteliers:false},
-  {id:'dan',     name:'Dan',     role:'manager', email:'dan@cafe.fr',      hoursPerWeek:40,cpBalance:18,  contractType:'CDI',      hasAteliers:false},
-  {id:'orianna', name:'Orianna', role:'employee',email:'orianna@cafe.fr',  hoursPerWeek:35,cpBalance:12.5,contractType:'CDI',      hasAteliers:false},
-  {id:'magda',   name:'Magda',   role:'employee',email:'magda@cafe.fr',    hoursPerWeek:35,cpBalance:10,  contractType:'CDI',      hasAteliers:false},
-  {id:'santiago',name:'Santiago',role:'employee',email:'santiago@cafe.fr', hoursPerWeek:30,cpBalance:8,   contractType:'Freelance',hasAteliers:true },
-  {id:'mathis',  name:'Mathis',  role:'employee',email:'mathis@cafe.fr',   hoursPerWeek:30,cpBalance:11,  contractType:'CDI',      hasAteliers:false},
-  {id:'myriam',  name:'Myriam',  role:'employee',email:'myriam@cafe.fr',   hoursPerWeek:35,cpBalance:14,  contractType:'CDI',      hasAteliers:false},
-  {id:'eliott',  name:'Eliott',  role:'employee',email:'eliott@cafe.fr',   hoursPerWeek:25,cpBalance:6,   contractType:'Freelance',hasAteliers:false},
-  {id:'cristina',name:'Cristina',role:'employee',email:'cristina@cafe.fr', hoursPerWeek:25,cpBalance:7,   contractType:'CDI',      hasAteliers:false},
+  {id:'julien',  name:'Julien',  role:'patron',  email:'julien@cafe.fr',  hoursPerWeek:0, cpBalance:0,   rttBalance:0, wage:0,    contractType:'CDI',      hasAteliers:false},
+  {id:'dan',     name:'Dan',     role:'manager', email:'dan@cafe.fr',      hoursPerWeek:40,cpBalance:18,  rttBalance:6, wage:16,   contractType:'CDI',      hasAteliers:false},
+  {id:'orianna', name:'Orianna', role:'employee',email:'orianna@cafe.fr',  hoursPerWeek:35,cpBalance:12.5,rttBalance:4, wage:13,   contractType:'CDI',      hasAteliers:false},
+  {id:'magda',   name:'Magda',   role:'employee',email:'magda@cafe.fr',    hoursPerWeek:35,cpBalance:10,  rttBalance:3, wage:12.5, contractType:'CDI',      hasAteliers:false},
+  {id:'santiago',name:'Santiago',role:'employee',email:'santiago@cafe.fr', hoursPerWeek:30,cpBalance:8,   rttBalance:0, wage:14,   contractType:'Freelance',hasAteliers:true },
+  {id:'mathis',  name:'Mathis',  role:'employee',email:'mathis@cafe.fr',   hoursPerWeek:30,cpBalance:11,  rttBalance:3, wage:12,   contractType:'CDI',      hasAteliers:false},
+  {id:'myriam',  name:'Myriam',  role:'employee',email:'myriam@cafe.fr',   hoursPerWeek:35,cpBalance:14,  rttBalance:5, wage:13.5, contractType:'CDI',      hasAteliers:false},
+  {id:'eliott',  name:'Eliott',  role:'employee',email:'eliott@cafe.fr',   hoursPerWeek:25,cpBalance:6,   rttBalance:0, wage:12,   contractType:'Freelance',hasAteliers:false},
+  {id:'cristina',name:'Cristina',role:'employee',email:'cristina@cafe.fr', hoursPerWeek:25,cpBalance:7,   rttBalance:2, wage:12,   contractType:'CDI',      hasAteliers:false},
 ];
 
 const PATTERN=[
@@ -110,6 +128,8 @@ const PATTERN=[
   [6,'orianna', '08:30','16:30'],[6,'myriam',  '09:00','14:00'],[6,'mathis','10:00','18:00'],[6,'magda','14:00','18:00'],
   [0,'myriam',  '08:30','16:30'],[0,'mathis',  '10:00','18:00'],[0,'magda', '10:00','18:00'],
 ];
+// Modèle de semaine par défaut (lun=0 … dim=6) dérivé du PATTERN
+const SEED_TEMPLATE = PATTERN.map(p=>({dow:(p[0]===0?6:p[0]-1),employeeId:p[1],start:p[2],end:p[3]}));
 
 function generateShifts(){
   const s=[];
@@ -129,8 +149,8 @@ const LS={
 // ─── Supabase (partage en ligne) ───
 const SUPA_URL='https://hyrnrekiqxpwoxuvekyq.supabase.co';
 const SUPA_KEY='sb_publishable_FtdRoF5z397VJzl-bVrlXg_XXvaQSMt';
-const HIST_KEYS=['users','shifts','requests','notifications','ateliers','tips','suggestions','corpo'];
-const DB_KEYS=[...HIST_KEYS,'demoMode'];   // demoMode synchronisé mais hors historique undo
+const HIST_KEYS=['users','shifts','requests','notifications','ateliers','tips','suggestions','corpo','weekTemplate'];
+const DB_KEYS=[...HIST_KEYS,'demoMode','cpPerMonth','rttPerMonth'];   // réglages synchronisés mais hors historique undo
 let supa=null;
 try{ if(window.supabase) supa=window.supabase.createClient(SUPA_URL,SUPA_KEY); }
 catch(e){ console.warn('Supabase init impossible',e); }
@@ -148,7 +168,10 @@ function initStorage(){
     LS.set('tips',[]);
     LS.set('suggestions',[]);
     LS.set('corpo',[]);
+    LS.set('weekTemplate',SEED_TEMPLATE);
     LS.set('demoMode',true);
+    LS.set('cpPerMonth',2.5);
+    LS.set('rttPerMonth',1);
     LS.set('init',1);
   }
 }
@@ -166,7 +189,10 @@ createApp({
       ateliers:     LS.get('ateliers')     ||[],
       tips:         LS.get('tips')         ||[],
       corpo:        LS.get('corpo')        ||[],
+      weekTemplate: LS.get('weekTemplate') ||SEED_TEMPLATE,
       demoMode:     LS.get('demoMode')!==false,   // démo par défaut tant que non désactivé
+      cpPerMonth:   LS.get('cpPerMonth')   ??2.5,  // jours de CP gagnés par mois travaillé
+      rttPerMonth:  LS.get('rttPerMonth')  ??1,    // jours de RTT gagnés par mois travaillé
       // corpo (Orianna)
       corpoYear:new Date().getFullYear(), corpoMonth:new Date().getMonth(), corpoAddDate:todayStr(),
       // planning
@@ -278,6 +304,30 @@ createApp({
       const arr=[]; for(let h=min;h<max;h++)arr.push(h); return arr;
     },
     selectedShift(){ return this.selShiftId ? (this.shifts.find(s=>s.id===this.selShiftId)||null) : null; },
+    // Coût de la semaine affichée
+    weekCost(){
+      let c=0;
+      this.weekDays.forEach(d=>{(this.shiftsMap[d.ds]||[]).forEach(s=>{const u=this.users.find(x=>x.id===s.employeeId);c+=diffH(s.start,s.end)*(+u?.wage||0);});});
+      return Math.round(c);
+    },
+    // Alertes repos légal pour la semaine affichée
+    legalWarnings(){
+      const out=[],days=this.weekDays;
+      this.employees.forEach(emp=>{
+        const ss=[];
+        days.forEach((d,i)=>{(this.shiftsMap[d.ds]||[]).filter(s=>s.employeeId===emp.id).forEach(s=>ss.push({i,startAbs:i*1440+parseTime(s.start),endAbs:i*1440+parseTime(s.end)}));});
+        ss.sort((a,b)=>a.startAbs-b.startAbs);
+        const msgs=[];
+        for(let j=1;j<ss.length;j++){const gap=ss[j].startAbs-ss[j-1].endAbs;if(gap>0&&gap<660){msgs.push('repos < 11h');break;}}
+        const dw=[...new Set(ss.map(s=>s.i))].sort((a,b)=>a-b);
+        let run=dw.length?1:0,mx=run;for(let j=1;j<dw.length;j++){run=dw[j]===dw[j-1]+1?run+1:1;if(run>mx)mx=run;}
+        if(mx>6)msgs.push('> 6 jours consécutifs');
+        const total=days.reduce((s,d)=>s+(this.shiftsMap[d.ds]||[]).filter(x=>x.employeeId===emp.id).reduce((a,x)=>a+diffH(x.start,x.end),0),0);
+        if(total>48)msgs.push((Math.round(total*10)/10)+'h > 48h/sem');
+        if(msgs.length)out.push({id:emp.id,name:emp.name,msgs});
+      });
+      return out;
+    },
 
     // ─── Requests ───
     myRequests(){
@@ -328,8 +378,8 @@ createApp({
         // ateliers hours for Santiago
         const atH=this.ateliers.filter(a=>{const d=new Date(a.date);return a.employeeId===emp.id&&d.getFullYear()===y&&d.getMonth()===m;}).reduce((s,a)=>s+(+a.hours),0);
         return{emp,worked:Math.round(worked*10)/10,contract:Math.round(contract*10)/10,delta:Math.round((worked-contract)*10)/10,
-          cpUsed:approved.filter(r=>r.type==='CP').length,ssCount:approved.filter(r=>r.type==='sans_solde').length,malCount:approved.filter(r=>r.type==='maladie').length,
-          atHours:atH,corpoHours:Math.round(corpoH*10)/10};
+          cpUsed:approved.filter(r=>r.type==='CP').length,rttUsed:approved.filter(r=>r.type==='RTT').length,ssCount:approved.filter(r=>r.type==='sans_solde').length,malCount:approved.filter(r=>r.type==='maladie').length,
+          atHours:atH,corpoHours:Math.round(corpoH*10)/10,cost:Math.round(worked*(+emp.wage||0))};
       });
     },
 
@@ -377,6 +427,7 @@ createApp({
 
   mounted(){
     this.sanitize();
+    this.accrueCP();
     this.initHistory();
     window.addEventListener('keydown',this._kd=this.handleKeydown.bind(this));
     // Synchro live entre onglets du même navigateur : recharge quand un autre onglet écrit
@@ -427,6 +478,21 @@ createApp({
       this.shifts=this.shifts.filter(validShift);
       if(this.shifts.length!==before)this.commit();
     },
+    // Acquisition automatique des CP : +cpPerMonth par mois écoulé, idempotent via cpAccruedThru
+    accrueCP(){
+      const cur=monthKey(new Date()), rc=+this.cpPerMonth||0, rr=+this.rttPerMonth||0; let changed=false;
+      this.users.forEach(u=>{
+        if(u.role==='patron')return;
+        if(!u.cpAccruedThru){ u.cpAccruedThru=cur; changed=true; return; }   // 1er lancement : pas de rétroactif
+        const n=monthsBetween(u.cpAccruedThru,cur);
+        if(n>0){
+          if(rc>0)u.cpBalance=Math.round(((u.cpBalance||0)+rc*n)*10)/10;
+          if(rr>0)u.rttBalance=Math.round(((u.rttBalance||0)+rr*n)*10)/10;
+          u.cpAccruedThru=cur; changed=true;
+        }
+      });
+      if(changed)this.commit();
+    },
 
     // ── Synchro Supabase ──
     initRemote(){
@@ -435,7 +501,7 @@ createApp({
         if(error){console.warn('Supabase load',error);this.online=false;return;}
         if(data&&data.length){
           data.forEach(r=>{if(DB_KEYS.includes(r.k)&&r.data!=null){this[r.k]=r.data;LS.set(r.k,r.data);}});
-          this.fixUserRef();this.initHistory();
+          this.fixUserRef();this.accrueCP();this.initHistory();
         } else {
           this._doPush();   // base vide → on envoie l'état local de départ
         }
@@ -518,6 +584,17 @@ createApp({
       const st=parseTime(start),en=parseTime(end);
       return (this.shiftsMap[date]||[]).some(s=>s.employeeId===empId&&s.id!==exceptId&&parseTime(s.start)<en&&parseTime(s.end)>st);
     },
+    // Absence validée de l'employé ce jour-là ?
+    onLeave(empId,date){
+      return this.requests.some(r=>r.employeeId===empId&&r.status==='approved'&&date>=(r.dateFrom||r.date)&&date<=(r.dateTo||r.dateFrom||r.date));
+    },
+    holiday(ds){return holidayName(ds);},
+    // Garde commune avant de placer/déplacer un shift
+    canPlace(empId,date,start,end,exceptId){
+      if(this.overlaps(empId,date,start,end,exceptId)){alert(this.empName(empId)+' a déjà un shift qui chevauche ce créneau.');return false;}
+      if(this.onLeave(empId,date)){alert(this.empName(empId)+' est en absence validée le '+fmtShort(date)+'.');return false;}
+      return true;
+    },
     // Clic sur une case vide = la sélectionner comme cible (pour ajouter / coller)
     agendaCellClick(date,hour){
       if(!this.canEdit)return;
@@ -528,9 +605,7 @@ createApp({
       if(!this.shiftClip)return;
       const dur=parseTime(this.shiftClip.end)-parseTime(this.shiftClip.start);
       const start=fmtMin(hour*60), end=fmtMin(hour*60+dur);
-      if(this.overlaps(this.shiftClip.employeeId,date,start,end,null)){
-        alert(this.empName(this.shiftClip.employeeId)+' a déjà un shift qui chevauche ce créneau.');return;
-      }
+      if(!this.canPlace(this.shiftClip.employeeId,date,start,end,null))return;
       this.shifts.push({id:uid(),employeeId:this.shiftClip.employeeId,date,start,end});
       this.commit();
     },
@@ -551,9 +626,7 @@ createApp({
       if(!s)return;
       const dur=parseTime(s.end)-parseTime(s.start);
       const start=fmtMin(hour*60), end=fmtMin(hour*60+dur);
-      if(this.overlaps(s.employeeId,date,start,end,s.id)){
-        alert(this.empName(s.employeeId)+' a déjà un shift qui chevauche ce créneau.');return;
-      }
+      if(!this.canPlace(s.employeeId,date,start,end,s.id))return;
       s.date=date;s.start=start;s.end=end;
       this.commit();
     },
@@ -638,6 +711,47 @@ createApp({
       this.clearSel();
     },
 
+    // ── Modèle de semaine ──
+    saveWeekAsTemplate(){
+      const t=[];
+      this.weekDays.forEach((d,i)=>{(this.shiftsMap[d.ds]||[]).forEach(s=>t.push({dow:i,employeeId:s.employeeId,start:s.start,end:s.end}));});
+      this.weekTemplate=t;this.commit();
+      alert('Modèle enregistré ('+t.length+' shifts) — applicable aux autres semaines.');
+    },
+    applyTemplate(){
+      if(!this.weekTemplate||!this.weekTemplate.length){alert('Aucun modèle enregistré.');return;}
+      if(!confirm('Appliquer le modèle à cette semaine ? (ajoute les shifts manquants, sans écraser l\'existant)'))return;
+      let added=0,skipped=0;
+      this.weekTemplate.forEach(it=>{
+        const day=this.weekDays[it.dow];if(!day)return;
+        if(this.overlaps(it.employeeId,day.ds,it.start,it.end,null)||this.onLeave(it.employeeId,day.ds)){skipped++;return;}
+        this.shifts.push({id:uid(),employeeId:it.employeeId,date:day.ds,start:it.start,end:it.end});added++;
+      });
+      if(added)this.commit();
+      alert(added+' shift(s) ajouté(s)'+(skipped?', '+skipped+' ignoré(s) (conflit/congé)':'')+'.');
+    },
+    // ── Export iCal (.ics) ──
+    exportICS(all){
+      const list=this.shifts.filter(s=>all?true:s.employeeId===this.user.id);
+      if(!list.length){alert('Aucun shift à exporter.');return;}
+      const dt=(date,t)=>date.replace(/-/g,'')+'T'+t.replace(':','')+'00';
+      const esc=s=>String(s).replace(/([,;\\])/g,'\\$1');
+      let ics='BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//CoffeeShift//FR\r\nCALSCALE:GREGORIAN\r\n';
+      list.forEach(s=>{
+        ics+='BEGIN:VEVENT\r\n'
+          +'UID:'+s.id+'@coffeeshift\r\n'
+          +'DTSTART:'+dt(s.date,s.start)+'\r\n'
+          +'DTEND:'+dt(s.date,s.end)+'\r\n'
+          +'SUMMARY:'+esc('Shift '+this.empName(s.employeeId))+'\r\n'
+          +'END:VEVENT\r\n';
+      });
+      ics+='END:VCALENDAR';
+      const blob=new Blob([ics],{type:'text/calendar'});
+      const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+      a.download='coffeeshift'+(all?'-equipe':'-'+this.user.id)+'.ics';
+      document.body.appendChild(a);a.click();a.remove();
+    },
+
     // ── Keyboard ──
     handleKeydown(e){
       if(!this.user)return;
@@ -695,9 +809,7 @@ createApp({
       const f=this.shiftForm;
       if(!f.employeeId||!f.date||!f.start||!f.end)return;
       if(parseTime(f.end)<=parseTime(f.start)){alert('L\'heure de fin doit être après le début.');return;}
-      if(this.overlaps(f.employeeId,f.date,f.start,f.end,this.editShift?this.editShift.id:null)){
-        alert(this.empName(f.employeeId)+' a déjà un shift qui chevauche ce créneau ce jour-là.');return;
-      }
+      if(!this.canPlace(f.employeeId,f.date,f.start,f.end,this.editShift?this.editShift.id:null))return;
       if(this.editShift){const i=this.shifts.findIndex(s=>s.id===this.editShift.id);if(i>=0)this.shifts[i]={...this.shifts[i],...f};}
       else this.shifts.push({id:uid(),...f});
       this.commit();this.showShift=false;
@@ -744,7 +856,7 @@ createApp({
       if(accept){
         const s=this.shifts.find(x=>x.id===req.myShiftId);if(s){s.employeeId=this.user.id;this.save();}
         req.status='approved';req.swapBy=this.user.id;
-        if(req.type==='CP')this.deductCP(req.employeeId);
+        this.adjustLeave(req.employeeId,req.type,-1);
         const d=req.dateFrom||req.date;
         this.notify(req.employeeId,`✅ ${this.user.name} prend ton shift du ${fmtShort(d)} ! Ton jour off est accordé.`);
         this.notify('dan',`✅ Swap OK : ${this.user.name} reprend le créneau de ${this.empName(req.employeeId)} le ${fmtShort(d)}.`);
@@ -762,26 +874,66 @@ createApp({
     managerDecide(rid,approve){
       const req=this.requests.find(r=>r.id===rid);if(!req)return;
       req.status=approve?'approved':'refused';
-      if(approve&&req.type==='CP'){
+      if(approve){
         const n=datesInRange(req.dateFrom||req.date,req.dateTo||req.dateFrom||req.date).length;
-        const u=this.users.find(x=>x.id===req.employeeId);if(u){u.cpBalance=Math.max(0,(u.cpBalance||0)-n);this.save();}
+        this.adjustLeave(req.employeeId,req.type,-n);
       }
       const d=req.dateFrom||req.date,lbl=req.dateFrom!==req.dateTo?fmtRange(req.dateFrom,req.dateTo):fmtShort(d);
       this.notify(req.employeeId,approve?`✅ Ton absence (${lbl}) a été validée.`:`❌ Ton absence (${lbl}) a été refusée.`);
       this.commit();
     },
-    deductCP(uid){const u=this.users.find(x=>x.id===uid);if(u){u.cpBalance=Math.max(0,(u.cpBalance||0)-1);this.save();}},
+    // Solde concerné par un type d'absence (CP / RTT) ; null pour sans solde / maladie
+    balField(type){return type==='CP'?'cpBalance':type==='RTT'?'rttBalance':null;},
+    adjustLeave(uid,type,delta){const f=this.balField(type);if(!f)return;const u=this.users.find(x=>x.id===uid);if(u)u[f]=Math.max(0,Math.round(((u[f]||0)+delta)*10)/10);this.save();},
+
+    // ── Admin : annuler / revenir sur une décision ──
+    reverseRequestEffects(req){
+      // recréditer le solde (CP ou RTT) si l'absence avait été accordée
+      if(req.status==='approved'){
+        const n=datesInRange(req.dateFrom||req.date,req.dateTo||req.dateFrom||req.date).length;
+        this.adjustLeave(req.employeeId,req.type,+n);
+      }
+      // si un échange avait réattribué le shift, le rendre au demandeur
+      if(req.swapBy&&req.myShiftId){
+        const s=this.shifts.find(x=>x.id===req.myShiftId);
+        if(s&&s.employeeId===req.swapBy)s.employeeId=req.employeeId;
+      }
+    },
+    revertDecision(rid){
+      const req=this.requests.find(r=>r.id===rid);if(!req)return;
+      this.reverseRequestEffects(req);
+      req.swapBy=null;req.swapDecisions={};
+      if(req.myShiftId){
+        req.status='pending_swap';
+        const date=req.dateFrom||req.date,shifted=new Set((this.shiftsMap[date]||[]).map(s=>s.employeeId));
+        req.proposedTo=this.employees.filter(e=>e.id!==req.employeeId&&!shifted.has(e.id)).map(e=>e.id);
+      } else { req.status='pending'; }
+      const lbl=req.dateFrom!==req.dateTo?fmtRange(req.dateFrom,req.dateTo):fmtShort(req.dateFrom||req.date);
+      this.notify(req.employeeId,`↩️ Ta demande (${lbl}) est de nouveau en attente — décision annulée par l'admin.`);
+      this.commit();
+    },
+    cancelRequest(rid){
+      const req=this.requests.find(r=>r.id===rid);if(!req)return;
+      if(!confirm('Annuler et supprimer cette demande d\'absence ?'))return;
+      this.reverseRequestEffects(req);
+      const lbl=req.dateFrom!==req.dateTo?fmtRange(req.dateFrom,req.dateTo):fmtShort(req.dateFrom||req.date);
+      this.requests=this.requests.filter(r=>r.id!==rid);
+      this.notify(req.employeeId,`🗑 Ta demande (${lbl}) a été annulée par l'admin.`);
+      this.commit();
+    },
 
     // ── Se positionner sur un shift à remplacer ──
     claimShift(rid){
       const req=this.requests.find(r=>r.id===rid);if(!req)return;
       const sh=this.shifts.find(s=>s.id===req.myShiftId);
       const d=req.dateFrom||req.date;
+      if(sh&&this.onLeave(this.user.id,d)){alert('Tu es en absence validée le '+fmtShort(d)+'.');return;}
+      if(sh&&this.overlaps(this.user.id,d,sh.start,sh.end,sh.id)){alert('Tu as déjà un shift qui chevauche ce créneau.');return;}
       if(!confirm(`Prendre le shift de ${this.empName(req.employeeId)} le ${fmtShort(d)}${sh?' ('+sh.start+'–'+sh.end+')':''} ?`))return;
       if(sh){sh.employeeId=this.user.id;}
       req.swapDecisions=req.swapDecisions||{};req.swapDecisions[this.user.id]='yes';
       req.status='approved';req.swapBy=this.user.id;
-      if(req.type==='CP')this.deductCP(req.employeeId);
+      this.adjustLeave(req.employeeId,req.type,-1);
       this.notify(req.employeeId,`✅ ${this.user.name} prend ton shift du ${fmtShort(d)} ! Ton jour off est accordé.`);
       this.notify('dan',`✅ ${this.user.name} se positionne sur le shift de ${this.empName(req.employeeId)} le ${fmtShort(d)}.`);
       this.commit();
@@ -839,7 +991,7 @@ createApp({
     cancelEdit(){this.editEmp=null;},
     saveEmp(){
       const i=this.users.findIndex(u=>u.id===this.editEmp.id);
-      if(i>=0)this.users[i]={...this.users[i],...this.empForm,hoursPerWeek:+this.empForm.hoursPerWeek,cpBalance:+this.empForm.cpBalance};
+      if(i>=0)this.users[i]={...this.users[i],...this.empForm,hoursPerWeek:+this.empForm.hoursPerWeek,cpBalance:+this.empForm.cpBalance,rttBalance:+(this.empForm.rttBalance||0),wage:+(this.empForm.wage||0)};
       this.commit();this.editEmp=null;
     },
 
@@ -912,7 +1064,7 @@ createApp({
     hrs(start,end){return diffH(start,end);},
     empColor, fmtLong, fmtShort, fmtRange,
     reqDateLabel(req){const f=req.dateFrom||req.date||'',t=req.dateTo||f;return fmtRange(f,t);},
-    typeLabel(t){return{CP:'Congé Payé',sans_solde:'Sans solde',maladie:'Arrêt maladie'}[t]||t;},
+    typeLabel(t){return{CP:'Congé Payé',RTT:'RTT',sans_solde:'Sans solde',maladie:'Arrêt maladie'}[t]||t;},
     statusLabel(s){return{pending_swap:'Swap en attente',pending:'En attente',approved:'Accordé',refused:'Refusé',needs_manager:'Décision manager'}[s]||s;},
     statusClr(s){return{pending_swap:'bg-amber-100 text-amber-800',pending:'bg-gray-100 text-gray-600',approved:'bg-green-100 text-green-800',refused:'bg-red-100 text-red-700',needs_manager:'bg-orange-100 text-orange-800'}[s]||'bg-gray-100 text-gray-600';},
     contractClr(t){return t==='Freelance'?'bg-violet-50 text-violet-700':'bg-blue-50 text-blue-700';},
@@ -1031,10 +1183,13 @@ createApp({
           <div v-for="day in calDays" :key="day.ds"
             @click="openDay(day.ds)"
             class="border-b border-r border-gray-100 min-h-[70px] p-1 cursor-pointer active:bg-gray-50"
-            :class="[!day.cur?'bg-gray-50/60':'',isToday(day.ds)?'ring-1 ring-inset ring-green-400':'']">
-            <div class="text-right text-[11px] font-medium mb-0.5 pr-0.5"
-              :class="[!day.cur?'text-gray-300':isToday(day.ds)?'text-green-600 font-bold':'text-gray-600']">
-              {{new Date(day.ds+'T00:00:00').getDate()}}
+            :class="[!day.cur?'bg-gray-50/60':'',holiday(day.ds)?'bg-rose-50':'',isToday(day.ds)?'ring-1 ring-inset ring-green-400':'']">
+            <div class="flex items-center justify-between">
+              <span v-if="holiday(day.ds)" class="text-[8px] leading-none" :title="holiday(day.ds)">🎉</span><span v-else></span>
+              <div class="text-right text-[11px] font-medium mb-0.5 pr-0.5"
+                :class="[!day.cur?'text-gray-300':isToday(day.ds)?'text-green-600 font-bold':holiday(day.ds)?'text-rose-500 font-bold':'text-gray-600']">
+                {{new Date(day.ds+'T00:00:00').getDate()}}
+              </div>
             </div>
             <div class="space-y-0.5">
               <div v-for="s in dayShiftsFor(day.ds).slice(0,3)" :key="s.id"
@@ -1074,7 +1229,20 @@ createApp({
             <span class="text-gray-300">|</span>
             <button @click="copyWeek" class="bg-violet-600 text-white px-2.5 py-1 rounded-lg text-xs font-semibold">Copier la semaine</button>
             <button v-if="daysClip" @click="pasteDaysSel" class="bg-blue-100 text-blue-700 px-2.5 py-1 rounded-lg text-xs font-semibold">Coller ici</button>
+            <span class="text-gray-300">|</span>
+            <button @click="applyTemplate" class="bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-semibold">Appliquer modèle</button>
+            <button @click="saveWeekAsTemplate" class="bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-semibold">Enreg. modèle</button>
           </template>
+          <span class="text-gray-300">|</span>
+          <button @click="exportICS(false)" class="bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-semibold">📅 Mon .ics</button>
+          <button v-if="canAdmin" @click="exportICS(true)" class="bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-semibold">Équipe .ics</button>
+          <span v-if="canAdmin" class="text-gray-300">|</span>
+          <span v-if="canAdmin" class="text-[11px] text-gray-500 font-medium">Coût sem. : <b class="text-gray-800">{{weekCost}} €</b></span>
+        </div>
+        <!-- Alertes repos légal -->
+        <div v-if="canEdit&&legalWarnings.length" class="bg-red-50 border-b border-red-100 px-3 py-1.5 text-[11px] text-red-700">
+          <span class="font-bold">⚠️ Repos légal :</span>
+          <span v-for="(w,i) in legalWarnings" :key="w.id">{{i?' · ':' '}}{{w.name}} ({{w.msgs.join(', ')}})</span>
         </div>
         <div v-if="canEdit" class="bg-blue-50 border-b border-blue-100 px-3 py-1.5 flex gap-3 overflow-x-auto whitespace-nowrap text-[10px] text-blue-600 font-medium">
           <span>Glisser-déposer pour déplacer</span><span class="text-blue-400">|</span><span>Case vide → Ajouter (ou Entrée)</span><span>Copier shift puis Ctrl+V</span><span>← → semaine</span><span class="text-blue-400">|</span><span class="font-bold">Ctrl+Z annuler</span>
@@ -1105,6 +1273,7 @@ createApp({
                       <span v-if="day.isToday" class="tn">{{day.num}}</span>
                       <span v-else>{{day.num}}</span>
                     </div>
+                    <div v-if="holiday(day.ds)" class="text-[8px] text-rose-500 font-bold leading-none" :title="holiday(day.ds)">🎉 férié</div>
                   </div>
                 </th>
               </tr>
@@ -1188,9 +1357,13 @@ createApp({
             </div>
             <span class="flex-shrink-0 text-xs px-2.5 py-1 rounded-full font-semibold" :class="statusClr(req.status)">{{statusLabel(req.status)}}</span>
           </div>
-          <div v-if="canEdit&&['needs_manager','pending','pending_swap'].includes(req.status)" class="flex gap-2 pt-1 border-t border-gray-100">
-            <button @click="managerDecide(req.id,true)"  class="flex-1 bg-green-600 text-white text-xs py-2 rounded-xl font-semibold hover:bg-green-700">Valider</button>
-            <button @click="managerDecide(req.id,false)" class="flex-1 bg-red-50 text-red-600 border border-red-200 text-xs py-2 rounded-xl font-semibold">Refuser</button>
+          <div v-if="canAdmin" class="flex flex-wrap gap-2 pt-1 border-t border-gray-100">
+            <template v-if="['needs_manager','pending','pending_swap'].includes(req.status)">
+              <button @click="managerDecide(req.id,true)"  class="flex-1 bg-green-600 text-white text-xs py-2 rounded-xl font-semibold hover:bg-green-700">Valider</button>
+              <button @click="managerDecide(req.id,false)" class="flex-1 bg-red-50 text-red-600 border border-red-200 text-xs py-2 rounded-xl font-semibold">Refuser</button>
+            </template>
+            <button v-else @click="revertDecision(req.id)" class="flex-1 bg-amber-50 text-amber-700 border border-amber-200 text-xs py-2 rounded-xl font-semibold">↩️ Revenir sur la décision</button>
+            <button @click="cancelRequest(req.id)" class="bg-gray-100 text-gray-600 text-xs px-3 py-2 rounded-xl font-semibold hover:bg-red-50 hover:text-red-600">Annuler</button>
           </div>
         </div>
       </div>
@@ -1283,10 +1456,17 @@ createApp({
           </div>
           <div class="flex flex-wrap gap-1.5 pt-1">
             <span class="text-xs bg-green-50 text-green-700 px-2.5 py-1 rounded-full font-medium">CP restants : {{row.emp.cpBalance}}j</span>
+            <span class="text-xs bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full font-medium">RTT restants : {{row.emp.rttBalance||0}}j</span>
             <span v-if="row.cpUsed>0"   class="text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full font-medium">CP posés : {{row.cpUsed}}j</span>
+            <span v-if="row.rttUsed>0"  class="text-xs bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full font-medium">RTT posés : {{row.rttUsed}}j</span>
             <span v-if="row.ssCount>0"  class="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full font-medium">Sans solde : {{row.ssCount}}j</span>
             <span v-if="row.malCount>0" class="text-xs bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full font-medium">Maladie : {{row.malCount}}j</span>
+            <span v-if="canAdmin" class="text-xs bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full font-medium">Coût : {{row.cost}} €</span>
           </div>
+        </div>
+        <div v-if="canAdmin&&reportData.length" class="bg-slate-800 rounded-2xl px-4 py-3 flex justify-between items-center">
+          <span class="text-sm font-semibold text-white">Coût masse salariale du mois</span>
+          <span class="font-bold text-white text-lg">{{reportData.reduce((s,r)=>s+r.cost,0)}} €</span>
         </div>
       </div>
 
@@ -1410,6 +1590,23 @@ createApp({
           <span class="absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-all" :class="demoMode?'left-[22px]':'left-0.5'"></span>
         </button>
       </div>
+      <!-- CP / RTT gagnés par mois -->
+      <div class="bg-white rounded-2xl border border-gray-200 p-4 space-y-3">
+        <div>
+          <p class="font-semibold text-gray-800 text-sm">Acquisition par mois travaillé</p>
+          <p class="text-[11px] text-gray-400 mt-0.5">Crédité automatiquement chaque mois sur le solde de chaque employé.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-gray-600 flex-1">CP gagnés / mois</span>
+          <input v-model.number="cpPerMonth" @change="save()" type="number" min="0" step="0.5" class="w-16 border border-gray-200 rounded-xl px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-green-400"/>
+          <span class="text-xs text-gray-400 w-10">j/mois</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-gray-600 flex-1">RTT gagnés / mois</span>
+          <input v-model.number="rttPerMonth" @change="save()" type="number" min="0" step="0.5" class="w-16 border border-gray-200 rounded-xl px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-green-400"/>
+          <span class="text-xs text-gray-400 w-10">j/mois</span>
+        </div>
+      </div>
       <h2 class="font-semibold text-gray-800">Gestion des employés</h2>
       <div v-for="emp in users.filter(u=>u.role==='employee')" :key="emp.id" class="bg-white rounded-2xl border border-gray-200 p-4">
         <div v-if="!editEmp||editEmp.id!==emp.id">
@@ -1425,6 +1622,7 @@ createApp({
             <span class="text-xs px-2.5 py-1 rounded-full font-medium" :class="contractClr(emp.contractType)">{{emp.contractType||'CDI'}}</span>
             <span class="text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full font-medium">{{emp.hoursPerWeek}}h/sem</span>
             <span class="text-xs bg-green-50 text-green-700 px-2.5 py-1 rounded-full font-medium">CP : {{emp.cpBalance}}j</span>
+            <span class="text-xs bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full font-medium">RTT : {{emp.rttBalance||0}}j</span>
             <span v-if="emp.hasAteliers" class="text-xs bg-orange-50 text-orange-700 px-2.5 py-1 rounded-full font-medium">🎓 Ateliers</span>
           </div>
         </div>
@@ -1438,7 +1636,9 @@ createApp({
                 <option value="CDI">CDI</option><option value="CDD">CDD</option><option value="Freelance">Freelance</option><option value="Stage">Stage</option><option value="Alternance">Alternance</option>
               </select></div>
             <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Heures/sem</label><input v-model="empForm.hoursPerWeek" type="number" min="0" max="50" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
-            <div class="col-span-2"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Solde CP (jours)</label><input v-model="empForm.cpBalance" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
+            <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Solde CP (jours)</label><input v-model="empForm.cpBalance" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
+            <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Solde RTT (jours)</label><input v-model="empForm.rttBalance" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
+            <div class="col-span-2"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Taux horaire (€/h)</label><input v-model="empForm.wage" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
           </div>
           <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
             <input type="checkbox" v-model="empForm.hasAteliers" class="rounded"/>
@@ -1595,7 +1795,7 @@ createApp({
         </div>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Type</label>
           <select v-model="leaveForm.type" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
-            <option value="CP">Congé payé (CP)</option><option value="sans_solde">Congé sans solde</option><option value="maladie">Arrêt maladie</option>
+            <option value="CP">Congé payé (CP)</option><option value="RTT">RTT</option><option value="sans_solde">Congé sans solde</option><option value="maladie">Arrêt maladie</option>
           </select></div>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Note (optionnel)</label>
           <textarea v-model="leaveForm.note" rows="2" placeholder="Ex : rendez-vous médical" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none"></textarea></div>
