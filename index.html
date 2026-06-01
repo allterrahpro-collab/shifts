@@ -191,6 +191,7 @@ createApp({
       corpo:        LS.get('corpo')        ||[],
       weekTemplate: LS.get('weekTemplate') ||SEED_TEMPLATE,
       demoMode:     LS.get('demoMode')!==false,   // démo par défaut tant que non désactivé
+      purgeDate:    '2026-07-31',                  // limite du planning (outil admin)
       cpPerMonth:   LS.get('cpPerMonth')   ??2.5,  // jours de CP gagnés par mois travaillé
       rttPerMonth:  LS.get('rttPerMonth')  ??1,    // jours de RTT gagnés par mois travaillé
       // corpo (Orianna)
@@ -732,6 +733,15 @@ createApp({
       });
       if(added)this.commit();
       alert(added+' shift(s) ajouté(s)'+(skipped?', '+skipped+' ignoré(s) (conflit/congé)':'')+'.');
+    },
+    // Effacer les shifts après une date (limiter le planning)
+    purgeShiftsAfter(){
+      const d=this.purgeDate;if(!d)return;
+      const n=this.shifts.filter(s=>s.date>d).length;
+      if(!n){alert('Aucun shift après le '+fmtShort(d)+'.');return;}
+      if(!confirm('Effacer '+n+' shift(s) après le '+fmtShort(d)+' ? (annulable par Ctrl+Z)'))return;
+      this.shifts=this.shifts.filter(s=>s.date<=d);
+      this.commit();
     },
     // ── Export iCal (.ics) ──
     exportICS(all){
@@ -1620,6 +1630,15 @@ createApp({
           <span class="text-xs text-gray-600 flex-1">RTT gagnés / mois</span>
           <input v-model.number="rttPerMonth" @change="save()" type="number" min="0" step="0.5" class="w-16 border border-gray-200 rounded-xl px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-green-400"/>
           <span class="text-xs text-gray-400 w-10">j/mois</span>
+        </div>
+      </div>
+      <!-- Limiter le planning -->
+      <div class="bg-white rounded-2xl border border-gray-200 p-4 space-y-2">
+        <p class="font-semibold text-gray-800 text-sm">Limiter le planning</p>
+        <p class="text-[11px] text-gray-400">Efface tous les shifts après la date choisie (ex. ne garder que jusqu'à fin juillet).</p>
+        <div class="flex items-center gap-2">
+          <input v-model="purgeDate" type="date" class="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"/>
+          <button @click="purgeShiftsAfter" class="bg-red-50 text-red-600 border border-red-200 px-3 py-2 rounded-xl text-sm font-semibold whitespace-nowrap">Effacer après</button>
         </div>
       </div>
       <h2 class="font-semibold text-gray-800">Gestion des employés</h2>
