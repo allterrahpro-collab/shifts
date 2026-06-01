@@ -479,13 +479,16 @@ createApp({
       if(this.shifts.length!==before)this.commit();
     },
     // Acquisition automatique des CP : +cpPerMonth par mois écoulé, idempotent via cpAccruedThru
+    cpRateOf(u){return u.cpRate!=null?(+u.cpRate||0):(+this.cpPerMonth||0);},
+    rttRateOf(u){return u.rttRate!=null?(+u.rttRate||0):(+this.rttPerMonth||0);},
     accrueCP(){
-      const cur=monthKey(new Date()), rc=+this.cpPerMonth||0, rr=+this.rttPerMonth||0; let changed=false;
+      const cur=monthKey(new Date()); let changed=false;
       this.users.forEach(u=>{
         if(u.role==='patron')return;
         if(!u.cpAccruedThru){ u.cpAccruedThru=cur; changed=true; return; }   // 1er lancement : pas de rétroactif
         const n=monthsBetween(u.cpAccruedThru,cur);
         if(n>0){
+          const rc=this.cpRateOf(u), rr=this.rttRateOf(u);
           if(rc>0)u.cpBalance=Math.round(((u.cpBalance||0)+rc*n)*10)/10;
           if(rr>0)u.rttBalance=Math.round(((u.rttBalance||0)+rr*n)*10)/10;
           u.cpAccruedThru=cur; changed=true;
@@ -995,11 +998,11 @@ createApp({
     markRead(){this.notifications.forEach(n=>{if(n.userId===this.user?.id)n.read=true;});this.save();},
 
     // ── Admin ──
-    startEdit(emp){this.editEmp=emp;this.empForm={...emp};},
+    startEdit(emp){this.editEmp=emp;this.empForm={...emp};if(this.empForm.cpRate==null)this.empForm.cpRate=this.cpPerMonth;if(this.empForm.rttRate==null)this.empForm.rttRate=this.rttPerMonth;},
     cancelEdit(){this.editEmp=null;},
     saveEmp(){
       const i=this.users.findIndex(u=>u.id===this.editEmp.id);
-      if(i>=0)this.users[i]={...this.users[i],...this.empForm,hoursPerWeek:+this.empForm.hoursPerWeek,cpBalance:+this.empForm.cpBalance,rttBalance:+(this.empForm.rttBalance||0),wage:+(this.empForm.wage||0)};
+      if(i>=0)this.users[i]={...this.users[i],...this.empForm,hoursPerWeek:+this.empForm.hoursPerWeek,cpBalance:+this.empForm.cpBalance,rttBalance:+(this.empForm.rttBalance||0),wage:+(this.empForm.wage||0),cpRate:+(this.empForm.cpRate||0),rttRate:+(this.empForm.rttRate||0)};
       this.commit();this.editEmp=null;
     },
 
@@ -1605,8 +1608,8 @@ createApp({
       <!-- CP / RTT gagnés par mois -->
       <div class="bg-white rounded-2xl border border-gray-200 p-4 space-y-3">
         <div>
-          <p class="font-semibold text-gray-800 text-sm">Acquisition par mois travaillé</p>
-          <p class="text-[11px] text-gray-400 mt-0.5">Crédité automatiquement chaque mois sur le solde de chaque employé.</p>
+          <p class="font-semibold text-gray-800 text-sm">Acquisition par défaut</p>
+          <p class="text-[11px] text-gray-400 mt-0.5">Valeurs appliquées aux employés sans taux personnalisé. Le taux de chacun se règle dans sa fiche.</p>
         </div>
         <div class="flex items-center gap-2">
           <span class="text-xs text-gray-600 flex-1">CP gagnés / mois</span>
@@ -1651,6 +1654,8 @@ createApp({
             <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Solde CP (jours)</label><input v-model="empForm.cpBalance" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
             <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Solde RTT (jours)</label><input v-model="empForm.rttBalance" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
             <div class="col-span-2"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Taux horaire (€/h)</label><input v-model="empForm.wage" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
+            <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">CP acquis / mois</label><input v-model="empForm.cpRate" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
+            <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">RTT acquis / mois</label><input v-model="empForm.rttRate" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
           </div>
           <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
             <input type="checkbox" v-model="empForm.hasAteliers" class="rounded"/>
