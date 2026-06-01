@@ -751,6 +751,13 @@ createApp({
       a.download='coffeeshift'+(all?'-equipe':'-'+this.user.id)+'.ics';
       document.body.appendChild(a);a.click();a.remove();
     },
+    // Lien d'abonnement (calendrier qui se met à jour tout seul, via l'Edge Function Supabase)
+    subscribeCal(all){
+      const u=all?'all':this.user.id;
+      const url=SUPA_URL+'/functions/v1/calendar?emp='+u;
+      try{navigator.clipboard&&navigator.clipboard.writeText(url);}catch(e){}
+      prompt('Lien d\'abonnement (copié) — à ajouter dans ton agenda via « S\'abonner à un calendrier par URL » :',url);
+    },
 
     // ── Keyboard ──
     handleKeydown(e){
@@ -981,6 +988,7 @@ createApp({
       }
       this.commit();
     },
+    deleteSugg(id){if(!confirm('Supprimer cette suggestion ?'))return;this.suggestions=this.suggestions.filter(x=>x.id!==id);this.commit();},
 
     // ── Notifications ──
     notify(userId,message){this.notifications.push({id:uid(),userId,message,read:false,at:todayStr()});this.save();},
@@ -1234,7 +1242,8 @@ createApp({
             <button @click="saveWeekAsTemplate" class="bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-semibold">Enreg. modèle</button>
           </template>
           <span class="text-gray-300">|</span>
-          <button @click="exportICS(false)" class="bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-semibold">📅 Mon .ics</button>
+          <button @click="subscribeCal(false)" class="bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-semibold">📅 S'abonner</button>
+          <button @click="exportICS(false)" class="bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-semibold">Mon .ics</button>
           <button v-if="canAdmin" @click="exportICS(true)" class="bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-semibold">Équipe .ics</button>
           <span v-if="canAdmin" class="text-gray-300">|</span>
           <span v-if="canAdmin" class="text-[11px] text-gray-500 font-medium">Coût sem. : <b class="text-gray-800">{{weekCost}} €</b></span>
@@ -1337,7 +1346,7 @@ createApp({
         <button @click="reqTab='remplace'" class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors"
           :class="reqTab==='remplace'?'bg-white text-gray-800 shadow-sm':'text-gray-500'">À remplacer<span v-if="openShifts.length>0" class="ml-1 bg-amber-500 text-white text-[9px] font-bold rounded-full px-1.5">{{openShifts.length}}</span></button>
         <button @click="reqTab='sugg'" class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors"
-          :class="reqTab==='sugg'?'bg-white text-gray-800 shadow-sm':'text-gray-500'">💡 Idées<span v-if="(canEdit||isPatron)&&pendingSuggCount>0" class="ml-1 bg-green-500 text-white text-[9px] font-bold rounded-full px-1.5">{{pendingSuggCount}}</span></button>
+          :class="reqTab==='sugg'?'bg-white text-gray-800 shadow-sm':'text-gray-500'">💡 Suggestions<span v-if="(canEdit||isPatron)&&pendingSuggCount>0" class="ml-1 bg-green-500 text-white text-[9px] font-bold rounded-full px-1.5">{{pendingSuggCount}}</span></button>
       </div>
 
       <!-- ── CONGÉS ── -->
@@ -1405,9 +1414,12 @@ createApp({
             </div>
             <span class="flex-shrink-0 text-xs px-2.5 py-1 rounded-full font-semibold" :class="statusClr(s.status)">{{statusLabel(s.status)}}</span>
           </div>
-          <div v-if="canEdit&&s.status==='pending'" class="flex gap-2 pt-1 border-t border-gray-100">
-            <button @click="decideSugg(s.id,true)"  class="flex-1 bg-green-600 text-white text-xs py-2 rounded-xl font-semibold hover:bg-green-700">Valider</button>
-            <button @click="decideSugg(s.id,false)" class="flex-1 bg-red-50 text-red-600 border border-red-200 text-xs py-2 rounded-xl font-semibold">Refuser</button>
+          <div v-if="canAdmin" class="flex gap-2 pt-1 border-t border-gray-100">
+            <template v-if="s.status==='pending'">
+              <button @click="decideSugg(s.id,true)"  class="flex-1 bg-green-600 text-white text-xs py-2 rounded-xl font-semibold hover:bg-green-700">Valider</button>
+              <button @click="decideSugg(s.id,false)" class="flex-1 bg-red-50 text-red-600 border border-red-200 text-xs py-2 rounded-xl font-semibold">Refuser</button>
+            </template>
+            <button @click="deleteSugg(s.id)" class="bg-gray-100 text-gray-600 text-xs px-3 py-2 rounded-xl font-semibold hover:bg-red-50 hover:text-red-600" :class="s.status!=='pending'?'flex-1':''">Supprimer</button>
           </div>
         </div>
       </div>
