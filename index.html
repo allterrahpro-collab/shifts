@@ -61,8 +61,14 @@ const fmtLong  = d => d ? new Date(d+'T00:00:00').toLocaleDateString('fr-FR',{we
 const fmtShort = d => d ? new Date(d+'T00:00:00').toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'}) : '';
 const fmtRange = (f,t) => !f||!t ? '' : f===t ? fmtShort(f) : 'du '+fmtShort(f)+' au '+fmtShort(t);
 const datesInRange = (f,t) => { const a=[]; for(let d=new Date(f+'T00:00:00');d<=new Date(t+'T00:00:00');d.setDate(d.getDate()+1)) a.push(ymd(d)); return a; };
-const parseTime = t => { const[h,m]=t.split(':').map(Number); return h*60+m; };
-const diffH = (s,e) => Math.round((parseTime(e)-parseTime(s))/6)/10;
+const parseTime = t => { if(!t||typeof t!=='string'||t.indexOf(':')<0)return 0; const[h,m]=t.split(':').map(Number); return (h||0)*60+(m||0); };
+const diffH = (s,e) => { const d=parseTime(e)-parseTime(s); return d>0?Math.round(d/6)/10:0; };
+const validShift = s => s&&s.employeeId&&s.date&&s.start&&s.end;
+// Hachage du mot de passe (SHA-256 si dispo, sinon repli simple)
+async function hashPw(s){
+  try{ if(window.crypto&&crypto.subtle){ const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('cs:'+s)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join(''); } }catch(e){}
+  let h=5381; for(let i=0;i<s.length;i++)h=((h*33)^s.charCodeAt(i))>>>0; return 'f'+h.toString(16);
+}
 const isWeekend = ds => { const d=new Date(ds+'T00:00:00').getDay(); return d===0||d===6; };
 const weekNum = ds => { const d=new Date(ds+'T00:00:00'); d.setHours(0,0,0,0); d.setDate(d.getDate()+3-(d.getDay()+6)%7); const w=new Date(d.getFullYear(),0,4); return 1+Math.round(((d-w)/86400000-(3-(w.getDay()+6)%7))/7); };
 
@@ -144,7 +150,7 @@ createApp({
   data(){
     initStorage();
     return{
-      user:null, loginForm:{username:'',password:'',err:''},
+      user:null, loginForm:{username:'',password:'',password2:'',err:''},
       view:'planning',
       users:        LS.get('users')        ||[],
       shifts:       LS.get('shifts')       ||[],
@@ -199,6 +205,7 @@ createApp({
     isPatron()  {return this.user?.role==='patron';},
     isEmployee(){return this.user?.role==='employee';},
     canEdit()   {return this.isManager;},
+    firstLogin(){const id=(this.loginForm.username||'').toLowerCase().trim();const u=this.users.find(x=>x.id===id);return !!u&&!u.password;},
     canUndo()   {return this.histIdx>0;},
     canRedo()   {return this.histIdx>=0&&this.histIdx<this.history.length-1;},
     employees() {return this.users.filter(u=>u.role==='employee');},
@@ -344,6 +351,7 @@ createApp({
   },
 
   mounted(){
+    this.sanitize();
     this.initHistory();
     window.addEventListener('keydown',this._kd=this.handleKeydown.bind(this));
     // Synchro live entre onglets du même navigateur : recharge quand un autre onglet écrit
@@ -355,12 +363,24 @@ createApp({
 
   methods:{
     // ── Auth ──
-    login(){
+    async login(){
       this.reload(true);   // repart des données à jour (autres onglets inclus)
-      const u=this.users.find(u=>u.id===this.loginForm.username.toLowerCase().trim());
-      if(u&&this.loginForm.password==='demo123'){this.user=u;this.loginForm.err='';if(this.isPatron)this.view='reports';}
-      else this.loginForm.err='Identifiant ou mot de passe incorrect.';
+      const id=this.loginForm.username.toLowerCase().trim();
+      const u=this.users.find(x=>x.id===id);
+      if(!u){this.loginForm.err='Identifiant inconnu.';return;}
+      const pw=this.loginForm.password||'';
+      if(!u.password){
+        // Première connexion : l'utilisateur choisit son mot de passe
+        if(pw.length<4){this.loginForm.err='Première connexion : choisis un mot de passe (4 caractères min).';return;}
+        if(pw!==this.loginForm.password2){this.loginForm.err='Les deux mots de passe ne correspondent pas.';return;}
+        u.password=await hashPw(pw);this.commit();
+        this._enter(u);
+      } else {
+        if(await hashPw(pw)===u.password)this._enter(u);
+        else this.loginForm.err='Mot de passe incorrect.';
+      }
     },
+    _enter(u){this.user=u;this.loginForm={username:'',password:'',password2:'',err:''};if(this.isPatron)this.view='reports';},
     logout(){this.user=null;this.view='planning';this.showDay=false;this.editingCell=null;this.selectedCell=null;this.selDays=[];},
     goTo(v){this.view=v;this.showDay=false;this.showNotif=false;this.editingCell=null;this.selectedCell=null;this.selDays=[];},
 
@@ -374,6 +394,12 @@ createApp({
       ['users','shifts','requests','notifications','ateliers','tips','suggestions'].forEach(k=>{const v=LS.get(k);if(v)this[k]=v;});
       if(this.user){const u=this.users.find(x=>x.id===this.user.id);if(u)this.user=u;}
       if(resetHist)this.initHistory();
+    },
+    // Retire les shifts incomplets (horaire manquant) qui faisaient planter les calculs
+    sanitize(){
+      const before=this.shifts.length;
+      this.shifts=this.shifts.filter(validShift);
+      if(this.shifts.length!==before)this.commit();
     },
 
     // ── Synchro Supabase ──
@@ -807,12 +833,18 @@ createApp({
           class="w-full border border-gray-200 bg-gray-50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:bg-white transition"/>
       </div>
       <div>
-        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Mot de passe</label>
-        <input v-model="loginForm.password" type="password" autocomplete="current-password"
+        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{{firstLogin?'Choisis un mot de passe':'Mot de passe'}}</label>
+        <input v-model="loginForm.password" type="password" :autocomplete="firstLogin?'new-password':'current-password'"
           class="w-full border border-gray-200 bg-gray-50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:bg-white transition"/>
       </div>
+      <div v-if="firstLogin">
+        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Confirme le mot de passe</label>
+        <input v-model="loginForm.password2" type="password" autocomplete="new-password"
+          class="w-full border border-gray-200 bg-gray-50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:bg-white transition"/>
+        <p class="text-[11px] text-green-600 mt-1.5">Première connexion : ce mot de passe sera demandé les fois suivantes.</p>
+      </div>
       <p v-if="loginForm.err" class="text-red-500 text-xs font-medium">{{loginForm.err}}</p>
-      <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition-colors text-sm shadow-sm">Se connecter</button>
+      <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition-colors text-sm shadow-sm">{{firstLogin?'Créer mon mot de passe':'Se connecter'}}</button>
     </form>
   </div>
 </div>
@@ -1283,6 +1315,10 @@ createApp({
             <input type="checkbox" v-model="empForm.hasAteliers" class="rounded"/>
             <span>Accès Ateliers & Formations</span>
           </label>
+          <div class="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
+            <span class="text-xs text-gray-500 flex-1">Mot de passe : <b>{{empForm.password?'défini':'non défini'}}</b></span>
+            <button v-if="empForm.password" @click="empForm.password=null" class="text-xs text-red-500 font-semibold px-2 py-1 rounded-lg hover:bg-red-50">Réinitialiser</button>
+          </div>
           <div class="flex gap-2 pt-1">
             <button @click="cancelEdit" class="flex-1 bg-gray-100 text-gray-600 py-2.5 rounded-xl text-sm font-semibold">Annuler</button>
             <button @click="saveEmp"   class="flex-1 bg-green-600 text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-green-700">Enregistrer</button>
