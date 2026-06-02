@@ -150,7 +150,7 @@ const LS={
 const SUPA_URL='https://hyrnrekiqxpwoxuvekyq.supabase.co';
 const SUPA_KEY='sb_publishable_FtdRoF5z397VJzl-bVrlXg_XXvaQSMt';
 const HIST_KEYS=['users','shifts','requests','notifications','ateliers','tips','suggestions','corpo','weekTemplate'];
-const DB_KEYS=[...HIST_KEYS,'demoMode','cpPerMonth','rttPerMonth'];   // réglages synchronisés mais hors historique undo
+const DB_KEYS=[...HIST_KEYS,'demoMode','cpPerMonth'];   // réglages synchronisés mais hors historique undo
 let supa=null;
 try{ if(window.supabase) supa=window.supabase.createClient(SUPA_URL,SUPA_KEY); }
 catch(e){ console.warn('Supabase init impossible',e); }
@@ -171,7 +171,6 @@ function initStorage(){
     LS.set('weekTemplate',SEED_TEMPLATE);
     LS.set('demoMode',true);
     LS.set('cpPerMonth',2.5);
-    LS.set('rttPerMonth',1);
     LS.set('init',1);
   }
 }
@@ -193,7 +192,6 @@ createApp({
       demoMode:     LS.get('demoMode')!==false,   // démo par défaut tant que non désactivé
       purgeDate:    '2026-07-31',                  // limite du planning (outil admin)
       cpPerMonth:   LS.get('cpPerMonth')   ??2.5,  // jours de CP gagnés par mois travaillé
-      rttPerMonth:  LS.get('rttPerMonth')  ??1,    // jours de RTT gagnés par mois travaillé
       // corpo (Orianna)
       corpoYear:new Date().getFullYear(), corpoMonth:new Date().getMonth(), corpoAddDate:todayStr(),
       // planning
@@ -384,7 +382,7 @@ createApp({
         // ateliers hours for Santiago
         const atH=this.ateliers.filter(a=>{const d=new Date(a.date);return a.employeeId===emp.id&&d.getFullYear()===y&&d.getMonth()===m;}).reduce((s,a)=>s+(+a.hours),0);
         return{emp,worked:Math.round(worked*10)/10,contract:Math.round(contract*10)/10,delta:Math.round((worked-contract)*10)/10,
-          cpUsed:approved.filter(r=>r.type==='CP').length,rttUsed:approved.filter(r=>r.type==='RTT').length,ssCount:approved.filter(r=>r.type==='sans_solde').length,malCount:approved.filter(r=>r.type==='maladie').length,
+          cpUsed:approved.filter(r=>r.type==='CP').length,ssCount:approved.filter(r=>r.type==='sans_solde').length,malCount:approved.filter(r=>r.type==='maladie').length,
           atHours:atH,corpoHours:Math.round(corpoH*10)/10,cost:Math.round(Math.max(worked,contract)*(+emp.wage||0))};
       });
     },
@@ -489,7 +487,6 @@ createApp({
     },
     // Acquisition automatique des CP : +cpPerMonth par mois écoulé, idempotent via cpAccruedThru
     cpRateOf(u){return u.cpRate!=null?(+u.cpRate||0):(+this.cpPerMonth||0);},
-    rttRateOf(u){return u.rttRate!=null?(+u.rttRate||0):(+this.rttPerMonth||0);},
     accrueCP(){
       const cur=monthKey(new Date()); let changed=false;
       this.users.forEach(u=>{
@@ -497,9 +494,8 @@ createApp({
         if(!u.cpAccruedThru){ u.cpAccruedThru=cur; changed=true; return; }   // 1er lancement : pas de rétroactif
         const n=monthsBetween(u.cpAccruedThru,cur);
         if(n>0){
-          const rc=this.cpRateOf(u), rr=this.rttRateOf(u);
+          const rc=this.cpRateOf(u);
           if(rc>0)u.cpBalance=Math.round(((u.cpBalance||0)+rc*n)*10)/10;
-          if(rr>0)u.rttBalance=Math.round(((u.rttBalance||0)+rr*n)*10)/10;
           u.cpAccruedThru=cur; changed=true;
         }
       });
@@ -916,13 +912,13 @@ createApp({
       this.notify(req.employeeId,approve?`✅ Ton absence (${lbl}) a été validée.`:`❌ Ton absence (${lbl}) a été refusée.`);
       this.commit();
     },
-    // Solde concerné par un type d'absence (CP / RTT) ; null pour sans solde / maladie
-    balField(type){return type==='CP'?'cpBalance':type==='RTT'?'rttBalance':null;},
+    // Solde concerné par un type d'absence ; null pour sans solde / maladie
+    balField(type){return type==='CP'?'cpBalance':null;},
     adjustLeave(uid,type,delta){const f=this.balField(type);if(!f)return;const u=this.users.find(x=>x.id===uid);if(u)u[f]=Math.max(0,Math.round(((u[f]||0)+delta)*10)/10);this.save();},
 
     // ── Admin : annuler / revenir sur une décision ──
     reverseRequestEffects(req){
-      // recréditer le solde (CP ou RTT) si l'absence avait été accordée
+      // recréditer le solde CP si l'absence avait été accordée
       if(req.status==='approved'){
         const n=datesInRange(req.dateFrom||req.date,req.dateTo||req.dateFrom||req.date).length;
         this.adjustLeave(req.employeeId,req.type,+n);
@@ -1022,23 +1018,23 @@ createApp({
     markRead(){this.notifications.forEach(n=>{if(n.userId===this.user?.id)n.read=true;});this.save();},
 
     // ── Admin ──
-    startEdit(emp){this.editEmp=emp;this.empForm={...emp};if(this.empForm.cpRate==null)this.empForm.cpRate=this.cpPerMonth;if(this.empForm.rttRate==null)this.empForm.rttRate=this.rttPerMonth;},
+    startEdit(emp){this.editEmp=emp;this.empForm={...emp};if(this.empForm.cpRate==null)this.empForm.cpRate=this.cpPerMonth;},
     cancelEdit(){this.editEmp=null;},
     saveEmp(){
       const i=this.users.findIndex(u=>u.id===this.editEmp.id);
-      if(i>=0)this.users[i]={...this.users[i],...this.empForm,hoursPerWeek:+this.empForm.hoursPerWeek,cpBalance:+this.empForm.cpBalance,rttBalance:+(this.empForm.rttBalance||0),wage:+(this.empForm.wage||0),cpRate:+(this.empForm.cpRate||0),rttRate:+(this.empForm.rttRate||0)};
+      if(i>=0)this.users[i]={...this.users[i],...this.empForm,hoursPerWeek:+this.empForm.hoursPerWeek,cpBalance:+this.empForm.cpBalance,wage:+(this.empForm.wage||0),cpRate:+(this.empForm.cpRate||0)};
       this.commit();this.editEmp=null;
     },
     // Créer un employé
     slugId(name){let b=(name||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'').slice(0,12)||'emp';let id=b,i=2;while(this.users.some(u=>u.id===id)){id=b+i;i++;}return id;},
-    openNewEmp(){this.editEmp=null;this.newEmp={name:'',email:'',contractType:'CDI',hoursPerWeek:35,cpBalance:0,rttBalance:0,wage:12,cpRate:this.cpPerMonth,rttRate:this.rttPerMonth,hasAteliers:false};this.showNewEmp=true;},
+    openNewEmp(){this.editEmp=null;this.newEmp={name:'',email:'',contractType:'CDI',hoursPerWeek:35,cpBalance:0,wage:12,cpRate:this.cpPerMonth,hasAteliers:false};this.showNewEmp=true;},
     createEmp(){
       const f=this.newEmp;
       if(!f.name||!f.name.trim()){alert('Le nom est requis.');return;}
       const id=this.slugId(f.name.trim());
       this.users.push({id,name:f.name.trim(),email:f.email||'',role:'employee',
-        hoursPerWeek:+f.hoursPerWeek||0,cpBalance:+f.cpBalance||0,rttBalance:+f.rttBalance||0,
-        wage:+f.wage||0,cpRate:+f.cpRate||0,rttRate:+f.rttRate||0,contractType:f.contractType||'CDI',
+        hoursPerWeek:+f.hoursPerWeek||0,cpBalance:+f.cpBalance||0,
+        wage:+f.wage||0,cpRate:+f.cpRate||0,contractType:f.contractType||'CDI',
         hasAteliers:!!f.hasAteliers,cpAccruedThru:monthKey(new Date())});
       this.commit();this.showNewEmp=false;
       alert('Employé créé : '+f.name.trim()+' (identifiant de connexion : '+id+').');
@@ -1121,7 +1117,7 @@ createApp({
     hrs(start,end){return diffH(start,end);},
     empColor, fmtLong, fmtShort, fmtRange,
     reqDateLabel(req){const f=req.dateFrom||req.date||'',t=req.dateTo||f;return fmtRange(f,t);},
-    typeLabel(t){return{CP:'Congé Payé',RTT:'RTT',sans_solde:'Sans solde',maladie:'Arrêt maladie'}[t]||t;},
+    typeLabel(t){return{CP:'Congé Payé',sans_solde:'Sans solde',maladie:'Arrêt maladie'}[t]||t;},
     statusLabel(s){return{pending_swap:'Swap en attente',pending:'En attente',approved:'Accordé',refused:'Refusé',needs_manager:'Décision manager'}[s]||s;},
     statusClr(s){return{pending_swap:'bg-amber-100 text-amber-800',pending:'bg-gray-100 text-gray-600',approved:'bg-green-100 text-green-800',refused:'bg-red-100 text-red-700',needs_manager:'bg-orange-100 text-orange-800'}[s]||'bg-gray-100 text-gray-600';},
     contractClr(t){return t==='Freelance'?'bg-violet-50 text-violet-700':'bg-blue-50 text-blue-700';},
@@ -1517,11 +1513,9 @@ createApp({
           </div>
           <div class="flex flex-wrap gap-1.5 pt-1">
             <span class="text-xs bg-green-50 text-green-700 px-2.5 py-1 rounded-full font-medium">CP restants : {{row.emp.cpBalance}}j</span>
-            <span class="text-xs bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full font-medium">RTT restants : {{row.emp.rttBalance||0}}j</span>
-            <span v-if="row.cpUsed>0"   class="text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full font-medium">CP posés : {{row.cpUsed}}j</span>
-            <span v-if="row.rttUsed>0"  class="text-xs bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full font-medium">RTT posés : {{row.rttUsed}}j</span>
-            <span v-if="row.ssCount>0"  class="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full font-medium">Sans solde : {{row.ssCount}}j</span>
-            <span v-if="row.malCount>0" class="text-xs bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full font-medium">Maladie : {{row.malCount}}j</span>
+            <span v-if="canAdmin&&row.cpUsed>0"   class="text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full font-medium">CP posés : {{row.cpUsed}}j</span>
+            <span v-if="canAdmin&&row.ssCount>0"  class="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full font-medium">Sans solde : {{row.ssCount}}j</span>
+            <span v-if="canAdmin&&row.malCount>0" class="text-xs bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full font-medium">Maladie : {{row.malCount}}j</span>
             <span v-if="canAdmin" class="text-xs bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full font-medium">Coût : {{row.cost}} €</span>
           </div>
         </div>
@@ -1657,20 +1651,15 @@ createApp({
           <span class="absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-all" :class="demoMode?'left-[22px]':'left-0.5'"></span>
         </button>
       </div>
-      <!-- CP / RTT gagnés par mois -->
+      <!-- CP gagnés par mois -->
       <div class="bg-white rounded-2xl border border-gray-200 p-4 space-y-3">
         <div>
-          <p class="font-semibold text-gray-800 text-sm">Acquisition par défaut</p>
-          <p class="text-[11px] text-gray-400 mt-0.5">Valeurs appliquées aux employés sans taux personnalisé. Le taux de chacun se règle dans sa fiche.</p>
+          <p class="font-semibold text-gray-800 text-sm">Acquisition CP par défaut</p>
+          <p class="text-[11px] text-gray-400 mt-0.5">Valeur appliquée aux employés sans taux personnalisé. Le taux de chacun se règle dans sa fiche.</p>
         </div>
         <div class="flex items-center gap-2">
           <span class="text-xs text-gray-600 flex-1">CP gagnés / mois</span>
           <input v-model.number="cpPerMonth" @change="save()" type="number" min="0" step="0.5" class="w-16 border border-gray-200 rounded-xl px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-green-400"/>
-          <span class="text-xs text-gray-400 w-10">j/mois</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <span class="text-xs text-gray-600 flex-1">RTT gagnés / mois</span>
-          <input v-model.number="rttPerMonth" @change="save()" type="number" min="0" step="0.5" class="w-16 border border-gray-200 rounded-xl px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-green-400"/>
           <span class="text-xs text-gray-400 w-10">j/mois</span>
         </div>
       </div>
@@ -1704,7 +1693,6 @@ createApp({
             <span class="text-xs px-2.5 py-1 rounded-full font-medium" :class="contractClr(emp.contractType)">{{emp.contractType||'CDI'}}</span>
             <span class="text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full font-medium">{{emp.hoursPerWeek}}h/sem</span>
             <span class="text-xs bg-green-50 text-green-700 px-2.5 py-1 rounded-full font-medium">CP : {{emp.cpBalance}}j</span>
-            <span class="text-xs bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full font-medium">RTT : {{emp.rttBalance||0}}j</span>
             <span v-if="emp.hasAteliers" class="text-xs bg-orange-50 text-orange-700 px-2.5 py-1 rounded-full font-medium">🎓 Ateliers</span>
           </div>
         </div>
@@ -1718,11 +1706,9 @@ createApp({
                 <option value="CDI">CDI</option><option value="CDD">CDD</option><option value="Freelance">Freelance</option><option value="Stage">Stage</option><option value="Alternance">Alternance</option>
               </select></div>
             <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Heures/sem</label><input v-model="empForm.hoursPerWeek" type="number" min="0" max="50" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
-            <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Solde CP (jours)</label><input v-model="empForm.cpBalance" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
-            <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Solde RTT (jours)</label><input v-model="empForm.rttBalance" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
+            <div class="col-span-2"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Solde CP (jours)</label><input v-model="empForm.cpBalance" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
             <div class="col-span-2"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Taux horaire (€/h)</label><input v-model="empForm.wage" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
-            <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">CP acquis / mois</label><input v-model="empForm.cpRate" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
-            <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">RTT acquis / mois</label><input v-model="empForm.rttRate" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
+            <div class="col-span-2"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">CP acquis / mois</label><input v-model="empForm.cpRate" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
           </div>
           <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
             <input type="checkbox" v-model="empForm.hasAteliers" class="rounded"/>
@@ -1879,7 +1865,7 @@ createApp({
         </div>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Type</label>
           <select v-model="leaveForm.type" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
-            <option value="CP">Congé payé (CP)</option><option value="RTT">RTT</option><option value="sans_solde">Congé sans solde</option><option value="maladie">Arrêt maladie</option>
+            <option value="CP">Congé payé (CP)</option><option value="sans_solde">Congé sans solde</option><option value="maladie">Arrêt maladie</option>
           </select></div>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Note (optionnel)</label>
           <textarea v-model="leaveForm.note" rows="2" placeholder="Ex : rendez-vous médical" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none"></textarea></div>
@@ -1993,11 +1979,8 @@ createApp({
           </select></div>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Heures/sem</label><input v-model="newEmp.hoursPerWeek" type="number" min="0" max="50" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Taux horaire (€/h)</label><input v-model="newEmp.wage" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
-        <div></div>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Solde CP</label><input v-model="newEmp.cpBalance" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
-        <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Solde RTT</label><input v-model="newEmp.rttBalance" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">CP / mois</label><input v-model="newEmp.cpRate" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
-        <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">RTT / mois</label><input v-model="newEmp.rttRate" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
       </div>
       <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer mt-3">
         <input type="checkbox" v-model="newEmp.hasAteliers" class="rounded"/><span>Accès Ateliers &amp; Formations</span>
