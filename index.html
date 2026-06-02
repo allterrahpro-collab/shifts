@@ -392,18 +392,21 @@ createApp({
 
       const empData=this.employees.map(emp=>{
         const ws=this.shifts.filter(s=>{const d=new Date(s.date);return s.employeeId===emp.id&&d.getFullYear()===y&&d.getMonth()===m;});
-        const hours=Math.round(ws.reduce((s,x)=>s+diffH(x.start,x.end),0)*10)/10;
-        return{emp,hours};
-      }).filter(d=>d.hours>0);
+        const wkndH=Math.round(ws.filter(s=>isWeekend(s.date)).reduce((a,x)=>a+diffH(x.start,x.end),0)*10)/10;
+        const wkdyH=Math.round(ws.filter(s=>!isWeekend(s.date)).reduce((a,x)=>a+diffH(x.start,x.end),0)*10)/10;
+        const weighted=Math.round((wkdyH+wkndH*2)*10)/10;   // weekend ×2
+        return{emp,wkndH,wkdyH,weighted};
+      }).filter(d=>d.weighted>0);
 
-      const totalH=empData.reduce((s,d)=>s+d.hours,0);
-      const coef=totalH>0?total/totalH:0;
+      const totalW=empData.reduce((s,d)=>s+d.weighted,0);
+      const coef=totalW>0?total/totalW:0;   // total distribué = total récolté
 
       return{
         total,hasData:total>0,
-        coef:Math.round(coef*100)/100,
-        employees:empData.map(d=>({...d,share:Math.round(d.hours*coef*100)/100})),
-        totalH:Math.round(totalH*10)/10,
+        coefWkdy:Math.round(coef*100)/100,
+        coefWknd:Math.round(coef*2*100)/100,
+        totalW:Math.round(totalW*10)/10,
+        employees:empData.map(d=>({...d,share:Math.round(d.weighted*coef*100)/100})),
       };
     },
 
@@ -723,15 +726,21 @@ createApp({
       alert('Modèle enregistré ('+t.length+' shifts) — applicable aux autres semaines.');
     },
     applyTemplate(){
-      if(!this.weekTemplate||!this.weekTemplate.length){alert('Aucun modèle enregistré.');return;}
-      if(!confirm('Appliquer le modèle à cette semaine ? (ajoute les shifts manquants, sans écraser l\'existant)'))return;
+      const tpl=(this.weekTemplate&&this.weekTemplate.length)?this.weekTemplate:SEED_TEMPLATE;
+      if(!tpl.length){alert('Aucun modèle enregistré. Arrange une semaine puis « Enreg. modèle ».');return;}
+      const hasShifts=this.weekDays.some(d=>(this.shiftsMap[d.ds]||[]).length);
+      let replace=false;
+      if(hasShifts){
+        replace=confirm('Cette semaine contient déjà des shifts.\n\nOK = REMPLACER par le modèle\nAnnuler = ajouter seulement les manquants');
+      }
+      if(replace){const set=new Set(this.weekDays.map(d=>d.ds));this.shifts=this.shifts.filter(s=>!set.has(s.date));}
       let added=0,skipped=0;
-      this.weekTemplate.forEach(it=>{
+      tpl.forEach(it=>{
         const day=this.weekDays[it.dow];if(!day)return;
         if(this.overlaps(it.employeeId,day.ds,it.start,it.end,null)||this.onLeave(it.employeeId,day.ds)){skipped++;return;}
         this.shifts.push({id:uid(),employeeId:it.employeeId,date:day.ds,start:it.start,end:it.end});added++;
       });
-      if(added)this.commit();
+      this.commit();
       alert(added+' shift(s) ajouté(s)'+(skipped?', '+skipped+' ignoré(s) (conflit/congé)':'')+'.');
     },
     // Effacer les shifts après une date (limiter le planning)
@@ -1500,7 +1509,7 @@ createApp({
         <!-- Input -->
         <div class="bg-white rounded-2xl border border-gray-200 p-4 space-y-3">
           <p class="font-semibold text-gray-800 text-sm">Pourboires encaissés</p>
-          <p class="text-xs text-gray-400">Répartition au prorata des heures travaillées. Le total distribué = le total entré.</p>
+          <p class="text-xs text-gray-400">Répartition au prorata des heures, weekend compté ×2. Le total distribué = le total entré.</p>
           <div class="flex gap-2 items-center">
             <div class="relative flex-1">
               <input v-model="tipsInput" type="number" min="0" step="0.01" placeholder="Ex : 320"
@@ -1521,14 +1530,20 @@ createApp({
 
         <!-- Split result -->
         <div v-if="tipsData.hasData">
-          <!-- Coefficient -->
+          <!-- Coefficients (weekend ×2) -->
           <div class="bg-white rounded-2xl border border-gray-200 p-4">
-            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Taux par heure</p>
-            <div class="bg-gray-50 rounded-xl py-3 text-center">
-              <p class="text-[10px] text-gray-400 font-medium uppercase">Toutes les heures</p>
-              <p class="font-bold text-gray-800 text-base mt-1">{{fmt2(tipsData.coef)}} €<span class="text-xs font-normal text-gray-400">/h</span></p>
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Taux par heure (weekend ×2)</p>
+            <div class="grid grid-cols-2 gap-3 text-center">
+              <div class="bg-gray-50 rounded-xl py-3">
+                <p class="text-[10px] text-gray-400 font-medium uppercase">Semaine</p>
+                <p class="font-bold text-gray-800 text-base mt-1">{{fmt2(tipsData.coefWkdy)}} €<span class="text-xs font-normal text-gray-400">/h</span></p>
+              </div>
+              <div class="bg-amber-50 rounded-xl py-3">
+                <p class="text-[10px] text-amber-600 font-medium uppercase">Weekend ×2</p>
+                <p class="font-bold text-amber-800 text-base mt-1">{{fmt2(tipsData.coefWknd)}} €<span class="text-xs font-normal text-amber-500">/h</span></p>
+              </div>
             </div>
-            <p class="text-[11px] text-gray-400 text-center mt-2">Total heures : {{tipsData.totalH}}h · Total à distribuer : {{tipsData.total}} €</p>
+            <p class="text-[11px] text-gray-400 text-center mt-2">Total pondéré : {{tipsData.totalW}}h · Total à distribuer : {{tipsData.total}} €</p>
           </div>
 
           <!-- Per-employee breakdown -->
@@ -1541,11 +1556,11 @@ createApp({
               <span class="w-3 h-3 rounded-full flex-shrink-0" :class="empColor(d.emp.id).dot"></span>
               <div class="flex-1 min-w-0">
                 <p class="font-semibold text-gray-800 text-sm">{{d.emp.name}}</p>
-                <p class="text-[11px] text-gray-400 mt-0.5">{{d.hours}}h travaillées</p>
+                <p class="text-[11px] text-gray-400 mt-0.5"><span>{{d.wkdyH}}h sem.</span><span v-if="d.wkndH>0" class="ml-2 text-amber-600 font-medium">+ {{d.wkndH}}h WE</span><span class="ml-2 text-gray-500">= {{d.weighted}}h pond.</span></p>
               </div>
               <div class="text-right flex-shrink-0">
                 <p class="font-bold text-green-700 text-lg">{{fmt2(d.share)}} €</p>
-                <p class="text-[10px] text-gray-400">{{Math.round(d.hours/tipsData.totalH*100)}}%</p>
+                <p class="text-[10px] text-gray-400">{{Math.round(d.weighted/tipsData.totalW*100)}}%</p>
               </div>
             </div>
           </div>
