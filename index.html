@@ -308,7 +308,11 @@ createApp({
     // Coût de la semaine affichée
     weekCost(){
       let c=0;
-      this.weekDays.forEach(d=>{(this.shiftsMap[d.ds]||[]).forEach(s=>{const u=this.users.find(x=>x.id===s.employeeId);c+=diffH(s.start,s.end)*(+u?.wage||0);});});
+      this.employees.forEach(emp=>{
+        const wh=this.weekDays.reduce((s,d)=>s+(this.shiftsMap[d.ds]||[]).filter(x=>x.employeeId===emp.id).reduce((a,x)=>a+diffH(x.start,x.end),0),0);
+        const paid=Math.max(wh,+emp.hoursPerWeek||0);   // jamais moins que le contractuel hebdo
+        c+=paid*(+emp.wage||0);
+      });
       return Math.round(c);
     },
     // Alertes repos légal pour la semaine affichée
@@ -380,7 +384,7 @@ createApp({
         const atH=this.ateliers.filter(a=>{const d=new Date(a.date);return a.employeeId===emp.id&&d.getFullYear()===y&&d.getMonth()===m;}).reduce((s,a)=>s+(+a.hours),0);
         return{emp,worked:Math.round(worked*10)/10,contract:Math.round(contract*10)/10,delta:Math.round((worked-contract)*10)/10,
           cpUsed:approved.filter(r=>r.type==='CP').length,rttUsed:approved.filter(r=>r.type==='RTT').length,ssCount:approved.filter(r=>r.type==='sans_solde').length,malCount:approved.filter(r=>r.type==='maladie').length,
-          atHours:atH,corpoHours:Math.round(corpoH*10)/10,cost:Math.round(worked*(+emp.wage||0))};
+          atHours:atH,corpoHours:Math.round(corpoH*10)/10,cost:Math.round(Math.max(worked,contract)*(+emp.wage||0))};
       });
     },
 
