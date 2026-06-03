@@ -433,14 +433,13 @@ createApp({
   },
 
   mounted(){
-    this.sanitize();
-    this.accrueCP();
     this.initHistory();
     window.addEventListener('keydown',this._kd=this.handleKeydown.bind(this));
     // Synchro live entre onglets du même navigateur : recharge quand un autre onglet écrit
     window.addEventListener('storage',this._st=(e)=>{ if(e.key&&e.key.indexOf('cs5_')===0){ this.reload(true); } });
-    // Synchro cloud (Supabase) : partage multi-appareils en temps réel
-    this.initRemote();
+    // Synchro cloud (Supabase) : on lit le cloud AVANT toute écriture (sinon on écraserait le cloud avec la démo locale)
+    if(supa){ this.initRemote(); }
+    else { this._afterLoad(); }
   },
   beforeUnmount(){window.removeEventListener('keydown',this._kd);window.removeEventListener('storage',this._st);},
 
@@ -503,17 +502,21 @@ createApp({
     },
 
     // ── Synchro Supabase ──
+    // Traitements post-chargement (nettoyage, acquisition CP, historique). _ready autorise enfin les écritures cloud.
+    _afterLoad(){ this._ready=true; this.sanitize(); this.accrueCP(); this.initHistory(); },
     initRemote(){
-      if(!supa)return;
+      if(!supa){this._afterLoad();return;}
       supa.from('app_state').select('k,data').then(({data,error})=>{
-        if(error){console.warn('Supabase load',error);this.online=false;return;}
+        if(error){console.warn('Supabase load',error);this.online=false;this._afterLoad();return;}
         if(data&&data.length){
           data.forEach(r=>{if(DB_KEYS.includes(r.k)&&r.data!=null){this[r.k]=r.data;LS.set(r.k,r.data);this._markPushed(r.k);}});
-          this.fixUserRef();this.accrueCP();this.initHistory();
+          this.fixUserRef();this.online=true;
+          this._afterLoad();                 // écritures autorisées seulement maintenant (après lecture du cloud)
         } else {
-          this._doPush();   // base vide → on envoie l'état local de départ
+          this.online=true;
+          this._afterLoad();                 // base vide → on autorise puis on envoie l'état de départ
+          this._doPush();
         }
-        this.online=true;
         supa.channel('cs_state')
           .on('postgres_changes',{event:'*',schema:'public',table:'app_state'},()=>this.schedulePull())
           .subscribe();
@@ -532,7 +535,7 @@ createApp({
     _markPushed(k){this._pushed=this._pushed||{};this._pushed[k]=JSON.stringify(this[k]);},
     pushRemote(){if(!supa)return;clearTimeout(this._pushT);this._pushT=setTimeout(()=>this._doPush(),250);},
     _doPush(){
-      if(!supa)return;
+      if(!supa||!this._ready)return;   // jamais d'écriture avant la 1re lecture du cloud
       this._pushed=this._pushed||{};
       const rows=[];
       DB_KEYS.forEach(k=>{const j=JSON.stringify(this[k]);if(j!==this._pushed[k]){rows.push({k,data:this[k],updated_at:new Date().toISOString()});this._pushed[k]=j;}});
