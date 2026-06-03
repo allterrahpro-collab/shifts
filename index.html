@@ -150,7 +150,7 @@ const LS={
 const SUPA_URL='https://hyrnrekiqxpwoxuvekyq.supabase.co';
 const SUPA_KEY='sb_publishable_FtdRoF5z397VJzl-bVrlXg_XXvaQSMt';
 const HIST_KEYS=['users','shifts','requests','notifications','ateliers','tips','suggestions','corpo','weekTemplate'];
-const DB_KEYS=[...HIST_KEYS,'cpPerMonth'];   // synchronisés (demoMode reste LOCAL, jamais synchronisé)
+const DB_KEYS=[...HIST_KEYS,'demoMode','cpPerMonth'];   // synchronisés (hors historique undo)
 let supa=null;
 try{ if(window.supabase) supa=window.supabase.createClient(SUPA_URL,SUPA_KEY); }
 catch(e){ console.warn('Supabase init impossible',e); }
@@ -1112,7 +1112,7 @@ createApp({
     toggleDemo(){
       const on=!this.demoMode;
       if(!on&&!confirm('Désactiver le mode démo ?\nLa plateforme devient officielle : chaque personne devra créer son mot de passe à la prochaine connexion.'))return;
-      this.demoMode=on;LS.set('demoMode',on);   // local uniquement, jamais écrasé par la synchro
+      this.demoMode=on;this.save();   // global : enregistré et synchronisé pour tout le monde
     },
 
     // ── Helpers ──
