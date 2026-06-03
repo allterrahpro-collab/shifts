@@ -108,15 +108,15 @@ const COLORS = {
 const empColor = id => COLORS[id]||{bg:'bg-gray-100',text:'text-gray-700',dot:'bg-gray-400'};
 
 const SEED_USERS = [
-  {id:'julien',  name:'Julien',  role:'patron',  email:'julien@cafe.fr',  hoursPerWeek:0, cpBalance:0,   rttBalance:0, wage:0,    contractType:'CDI',      hasAteliers:false},
-  {id:'dan',     name:'Dan',     role:'manager', email:'dan@cafe.fr',      hoursPerWeek:40,cpBalance:18,  rttBalance:6, wage:16,   contractType:'CDI',      hasAteliers:false},
-  {id:'orianna', name:'Orianna', role:'employee',email:'orianna@cafe.fr',  hoursPerWeek:35,cpBalance:12.5,rttBalance:4, wage:13,   contractType:'CDI',      hasAteliers:false},
-  {id:'magda',   name:'Magda',   role:'employee',email:'magda@cafe.fr',    hoursPerWeek:35,cpBalance:10,  rttBalance:3, wage:12.5, contractType:'CDI',      hasAteliers:false},
-  {id:'santiago',name:'Santiago',role:'employee',email:'santiago@cafe.fr', hoursPerWeek:30,cpBalance:8,   rttBalance:0, wage:14,   contractType:'Freelance',hasAteliers:true },
-  {id:'mathis',  name:'Mathis',  role:'employee',email:'mathis@cafe.fr',   hoursPerWeek:30,cpBalance:11,  rttBalance:3, wage:12,   contractType:'CDI',      hasAteliers:false},
-  {id:'myriam',  name:'Myriam',  role:'employee',email:'myriam@cafe.fr',   hoursPerWeek:35,cpBalance:14,  rttBalance:5, wage:13.5, contractType:'CDI',      hasAteliers:false},
-  {id:'eliott',  name:'Eliott',  role:'employee',email:'eliott@cafe.fr',   hoursPerWeek:25,cpBalance:6,   rttBalance:0, wage:12,   contractType:'Freelance',hasAteliers:false},
-  {id:'cristina',name:'Cristina',role:'employee',email:'cristina@cafe.fr', hoursPerWeek:25,cpBalance:7,   rttBalance:2, wage:12,   contractType:'CDI',      hasAteliers:false},
+  {id:'julien',  name:'Julien',  role:'patron',  email:'julien@cafe.fr',  hoursPerWeek:0, cpBalance:0,    wage:0,     contractType:'CDI',       hasAteliers:false},
+  {id:'dan',     name:'Dan',     role:'manager', email:'dan@cafe.fr',      hoursPerWeek:37,cpBalance:11,   wage:32.58, contractType:'CDI',       hasAteliers:false},
+  {id:'orianna', name:'Orianna', role:'employee',email:'orianna@cafe.fr',  hoursPerWeek:35,cpBalance:4.5,  wage:15.23, contractType:'CDI',       hasAteliers:false},
+  {id:'magda',   name:'Magda',   role:'employee',email:'magda@cafe.fr',    hoursPerWeek:35,cpBalance:1.08, wage:18.20, contractType:'CDI',       hasAteliers:false},
+  {id:'santiago',name:'Santiago',role:'employee',email:'santiago@cafe.fr', hoursPerWeek:24,cpBalance:12,   wage:13.46, contractType:'CDI',       hasAteliers:true },
+  {id:'mathis',  name:'Mathis',  role:'employee',email:'mathis@cafe.fr',   hoursPerWeek:24,cpBalance:0.5,  wage:14.28, contractType:'CDI',       hasAteliers:false},
+  {id:'myriam',  name:'Myriam',  role:'employee',email:'myriam@cafe.fr',   hoursPerWeek:28,cpBalance:5,    wage:18.75, contractType:'CDI',       hasAteliers:false},
+  {id:'eliott',  name:'Eliott',  role:'employee',email:'eliott@cafe.fr',   hoursPerWeek:0, cpBalance:0,    wage:0,     contractType:'Freelance', hasAteliers:false, cpRate:0},
+  {id:'cristina',name:'Cristina',role:'employee',email:'cristina@cafe.fr', hoursPerWeek:35,cpBalance:9.67, wage:9.42,  contractType:'Alternance',hasAteliers:false},
 ];
 
 const PATTERN=[
@@ -150,7 +150,7 @@ const LS={
 const SUPA_URL='https://hyrnrekiqxpwoxuvekyq.supabase.co';
 const SUPA_KEY='sb_publishable_FtdRoF5z397VJzl-bVrlXg_XXvaQSMt';
 const HIST_KEYS=['users','shifts','requests','notifications','ateliers','tips','suggestions','corpo','weekTemplate'];
-const DB_KEYS=[...HIST_KEYS,'demoMode','cpPerMonth'];   // réglages synchronisés mais hors historique undo
+const DB_KEYS=[...HIST_KEYS,'cpPerMonth'];   // synchronisés (demoMode reste LOCAL, jamais synchronisé)
 let supa=null;
 try{ if(window.supabase) supa=window.supabase.createClient(SUPA_URL,SUPA_KEY); }
 catch(e){ console.warn('Supabase init impossible',e); }
@@ -508,7 +508,7 @@ createApp({
       supa.from('app_state').select('k,data').then(({data,error})=>{
         if(error){console.warn('Supabase load',error);this.online=false;return;}
         if(data&&data.length){
-          data.forEach(r=>{if(DB_KEYS.includes(r.k)&&r.data!=null){this[r.k]=r.data;LS.set(r.k,r.data);}});
+          data.forEach(r=>{if(DB_KEYS.includes(r.k)&&r.data!=null){this[r.k]=r.data;LS.set(r.k,r.data);this._markPushed(r.k);}});
           this.fixUserRef();this.accrueCP();this.initHistory();
         } else {
           this._doPush();   // base vide → on envoie l'état local de départ
@@ -525,14 +525,18 @@ createApp({
       if(!supa)return;
       supa.from('app_state').select('k,data').then(({data,error})=>{
         if(error){this.online=false;return;}
-        (data||[]).forEach(r=>{if(DB_KEYS.includes(r.k)&&r.data!=null){this[r.k]=r.data;LS.set(r.k,r.data);}});
+        (data||[]).forEach(r=>{if(DB_KEYS.includes(r.k)&&r.data!=null){this[r.k]=r.data;LS.set(r.k,r.data);this._markPushed(r.k);}});
         this.fixUserRef();this.online=true;
       });
     },
+    _markPushed(k){this._pushed=this._pushed||{};this._pushed[k]=JSON.stringify(this[k]);},
     pushRemote(){if(!supa)return;clearTimeout(this._pushT);this._pushT=setTimeout(()=>this._doPush(),250);},
     _doPush(){
       if(!supa)return;
-      const rows=DB_KEYS.map(k=>({k,data:this[k],updated_at:new Date().toISOString()}));
+      this._pushed=this._pushed||{};
+      const rows=[];
+      DB_KEYS.forEach(k=>{const j=JSON.stringify(this[k]);if(j!==this._pushed[k]){rows.push({k,data:this[k],updated_at:new Date().toISOString()});this._pushed[k]=j;}});
+      if(!rows.length)return;   // ne pousse QUE ce qui a changé localement
       supa.from('app_state').upsert(rows).then(({error})=>{this.online=!error;if(error)console.warn('Supabase save',error);});
     },
     commit(){
@@ -1108,7 +1112,7 @@ createApp({
     toggleDemo(){
       const on=!this.demoMode;
       if(!on&&!confirm('Désactiver le mode démo ?\nLa plateforme devient officielle : chaque personne devra créer son mot de passe à la prochaine connexion.'))return;
-      this.demoMode=on;this.save();
+      this.demoMode=on;LS.set('demoMode',on);   // local uniquement, jamais écrasé par la synchro
     },
 
     // ── Helpers ──
