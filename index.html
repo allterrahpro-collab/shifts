@@ -248,7 +248,7 @@ createApp({
     canUndo()   {return this.histIdx>0;},
     canRedo()   {return this.histIdx>=0&&this.histIdx<this.history.length-1;},
     employees() {return this.users.filter(u=>u.role==='employee');},
-    showAteliers(){ return this.isManager || (this.user?.hasAteliers===true); },
+    showAteliers(){ return !!this.user; },   // chacun peut consulter/ajouter ses ateliers
     unread()    {return this.notifications.filter(n=>n.userId===this.user?.id&&!n.read).length;},
     myNotifs()  {return[...this.notifications].filter(n=>n.userId===this.user?.id).sort((a,b)=>b.at.localeCompare(a.at)).slice(0,30);},
 
@@ -376,14 +376,15 @@ createApp({
         const shiftH=ws.reduce((s,x)=>s+diffH(x.start,x.end),0);
         // heures corpo (comptées dans le décompte)
         const corpoH=this.corpo.filter(c=>{const d=new Date(c.date);return c.employeeId===emp.id&&d.getFullYear()===y&&d.getMonth()===m;}).reduce((s,c)=>s+diffH(c.start,c.end),0);
-        const worked=shiftH+corpoH;
-        const contract=(emp.hoursPerWeek||0)*4.33;
+        // ateliers VALIDÉS (les ateliers en attente ne comptent pas)
+        const atH=this.ateliers.filter(a=>{const d=new Date(a.date);return a.employeeId===emp.id&&a.pending!==true&&d.getFullYear()===y&&d.getMonth()===m;}).reduce((s,a)=>s+(+a.hours||0),0);
+        const worked=shiftH+corpoH+atH;   // shifts + corpo + ateliers
+        const contract=Math.round((emp.hoursPerWeek||0)*(52/12)*10)/10;   // mensualisation légale 52/12 (référence)
+        const extra=this.weeklyExtra(emp.id,y,m);   // heures sup/compl. comptées À LA SEMAINE
         const approved=this.requests.filter(r=>{const d=new Date(r.dateFrom||r.date||'');return r.employeeId===emp.id&&r.status==='approved'&&d.getFullYear()===y&&d.getMonth()===m;});
-        // ateliers hours for Santiago
-        const atH=this.ateliers.filter(a=>{const d=new Date(a.date);return a.employeeId===emp.id&&d.getFullYear()===y&&d.getMonth()===m;}).reduce((s,a)=>s+(+a.hours),0);
-        return{emp,worked:Math.round(worked*10)/10,contract:Math.round(contract*10)/10,delta:Math.round((worked-contract)*10)/10,
+        return{emp,worked:Math.round(worked*10)/10,contract:Math.round(contract*10)/10,delta:Math.round((worked-contract)*10)/10,extra,
           cpUsed:approved.filter(r=>r.type==='CP').length,ssCount:approved.filter(r=>r.type==='sans_solde').length,malCount:approved.filter(r=>r.type==='maladie').length,
-          atHours:atH,corpoHours:Math.round(corpoH*10)/10,cost:Math.round(Math.max(worked,contract)*(+emp.wage||0))};
+          atHours:Math.round(atH*10)/10,corpoHours:Math.round(corpoH*10)/10,cost:Math.round(Math.max(worked,contract)*(+emp.wage||0))};
       });
     },
 
@@ -1073,17 +1074,27 @@ createApp({
     nextAt(){if(this.atMonth===11){this.atMonth=0;this.atYear++;}else this.atMonth++;},
     openAtForm(){
       this.editAt=null;
-      this.atForm={employeeId:'santiago',date:todayStr(),title:'',hours:2,type:'atelier',note:''};
+      const who=this.isEmployee?this.user.id:(this.employees[0]?.id||'');
+      this.atForm={employeeId:who,date:todayStr(),title:'',hours:2,type:'atelier',note:''};
       this.showAtForm=true;
     },
     openEditAt(a){this.editAt=a;this.atForm={...a};this.showAtForm=true;},
     saveAt(){
       if(!this.atForm.title||!this.atForm.date)return;
-      if(this.editAt){const i=this.ateliers.findIndex(a=>a.id===this.editAt.id);if(i>=0)this.ateliers[i]={...this.ateliers[i],...this.atForm,hours:+this.atForm.hours};}
-      else this.ateliers.push({id:uid(),...this.atForm,hours:+this.atForm.hours});
+      if(this.isEmployee)this.atForm.employeeId=this.user.id;   // un employé ne crée que pour lui-même
+      const pend=this.isEmployee;   // saisie employé = à valider par Dan/Julien ; saisie admin = direct
+      if(this.editAt){const i=this.ateliers.findIndex(a=>a.id===this.editAt.id);if(i>=0)this.ateliers[i]={...this.ateliers[i],...this.atForm,hours:+this.atForm.hours,pending:pend};}
+      else this.ateliers.push({id:uid(),...this.atForm,hours:+this.atForm.hours,pending:pend});
+      if(pend)this.notify('dan',`🎓 ${this.user.name} a ajouté un atelier à valider : « ${this.atForm.title} » le ${fmtShort(this.atForm.date)}.`);
       this.commit();this.showAtForm=false;
     },
     deleteAt(id){if(!confirm('Supprimer cet atelier ?'))return;this.ateliers=this.ateliers.filter(a=>a.id!==id);this.commit();},
+    validateAt(id){
+      const a=this.ateliers.find(x=>x.id===id);if(!a)return;
+      a.pending=false;
+      this.notify(a.employeeId,`✅ Ton atelier « ${a.title} » du ${fmtShort(a.date)} a été validé.`);
+      this.commit();
+    },
 
     // ── Corpo (Orianna) ──
     prevCorpo(){if(this.corpoMonth===0){this.corpoMonth=11;this.corpoYear--;}else this.corpoMonth--;},
@@ -1122,6 +1133,19 @@ createApp({
     empName(id){return this.users.find(u=>u.id===id)?.name||id;},
     shiftById(id){return this.shifts.find(s=>s.id===id)||null;},
     hrs(start,end){return diffH(start,end);},
+    // Heures sup/complémentaires comptées À LA SEMAINE (lun→dim), pour les semaines dont le lundi tombe dans le mois.
+    // = somme des dépassements hebdo au-delà du contrat (0 si chaque semaine respecte le contrat).
+    weeklyExtra(empId,y,m){
+      const wc=+(this.users.find(u=>u.id===empId)?.hoursPerWeek)||0;
+      const weeks={};
+      const add=(date,h)=>{const d=new Date(date+'T00:00:00');const back=(d.getDay()+6)%7;d.setDate(d.getDate()-back);weeks[ymd(d)]=(weeks[ymd(d)]||0)+h;};
+      this.shifts.forEach(s=>{if(s.employeeId===empId)add(s.date,diffH(s.start,s.end));});
+      this.corpo.forEach(c=>{if(c.employeeId===empId)add(c.date,diffH(c.start,c.end));});
+      this.ateliers.forEach(a=>{if(a.employeeId===empId&&a.pending!==true)add(a.date,+a.hours||0);});
+      let extra=0;
+      Object.keys(weeks).forEach(k=>{const mon=new Date(k+'T00:00:00');if(mon.getFullYear()===y&&mon.getMonth()===m)extra+=Math.max(0,weeks[k]-wc);});
+      return Math.round(extra*10)/10;
+    },
     empColor, fmtLong, fmtShort, fmtRange,
     reqDateLabel(req){const f=req.dateFrom||req.date||'',t=req.dateTo||f;return fmtRange(f,t);},
     typeLabel(t){return{CP:'Congé Payé',sans_solde:'Sans solde',maladie:'Arrêt maladie'}[t]||t;},
@@ -1507,12 +1531,13 @@ createApp({
           <div class="grid grid-cols-3 gap-2 text-center">
             <div class="bg-gray-50 rounded-xl py-2.5"><p class="text-[10px] text-gray-400 font-medium">Contrat</p><p class="font-bold text-gray-700 text-sm mt-0.5">{{row.contract}}h</p></div>
             <div class="bg-gray-50 rounded-xl py-2.5"><p class="text-[10px] text-gray-400 font-medium">Travaillé</p><p class="font-bold text-gray-700 text-sm mt-0.5">{{row.worked}}h</p></div>
-            <div class="rounded-xl py-2.5" :class="row.delta>=0?'bg-green-50':'bg-red-50'"><p class="text-[10px] text-gray-400 font-medium">Delta</p><p class="font-bold text-sm mt-0.5" :class="row.delta>=0?'text-green-700':'text-red-600'">{{row.delta>=0?'+':''}}{{row.delta}}h</p></div>
+            <div class="rounded-xl py-2.5" :class="row.extra>0?'bg-amber-50':'bg-gray-50'"><p class="text-[10px] text-gray-400 font-medium">Sup/compl.</p><p class="font-bold text-sm mt-0.5" :class="row.extra>0?'text-amber-700':'text-gray-500'">{{row.extra}}h</p></div>
           </div>
+          <p class="text-[10px] text-gray-400 text-center">« Sup/compl. » = heures au-delà du contrat comptées à la semaine (0 si chaque semaine respecte le contrat).</p>
           <!-- Santiago's ateliers hours -->
           <div v-if="row.atHours>0" class="bg-orange-50 rounded-xl px-3 py-2 flex items-center gap-2">
             <span class="text-orange-600 text-xs">🎓</span>
-            <span class="text-xs text-orange-700 font-medium">Ateliers & formations : {{row.atHours}}h (hors shifts)</span>
+            <span class="text-xs text-orange-700 font-medium">dont {{row.atHours}}h ateliers/formations (incluses dans le total travaillé)</span>
           </div>
           <div v-if="row.corpoHours>0" class="bg-pink-50 rounded-xl px-3 py-2 flex items-center gap-2">
             <span class="text-pink-600 text-xs">🌟</span>
@@ -1520,9 +1545,9 @@ createApp({
           </div>
           <div class="flex flex-wrap gap-1.5 pt-1">
             <span class="text-xs bg-green-50 text-green-700 px-2.5 py-1 rounded-full font-medium">CP restants : {{row.emp.cpBalance}}j</span>
-            <span v-if="canAdmin&&row.cpUsed>0"   class="text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full font-medium">CP posés : {{row.cpUsed}}j</span>
-            <span v-if="canAdmin&&row.ssCount>0"  class="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full font-medium">Sans solde : {{row.ssCount}}j</span>
-            <span v-if="canAdmin&&row.malCount>0" class="text-xs bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full font-medium">Maladie : {{row.malCount}}j</span>
+            <span class="text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full font-medium">CP posés : {{row.cpUsed}}j</span>
+            <span class="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full font-medium">Sans solde : {{row.ssCount}}j</span>
+            <span class="text-xs bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full font-medium">Maladie : {{row.malCount}}j</span>
             <span v-if="canAdmin" class="text-xs bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full font-medium">Coût : {{row.cost}} €</span>
           </div>
         </div>
@@ -1610,7 +1635,7 @@ createApp({
           <h2 class="font-semibold text-gray-800">Ateliers & Formations</h2>
           <p class="text-xs text-gray-400 mt-0.5">Hors planning shifts</p>
         </div>
-        <button v-if="canEdit" @click="openAtForm" class="bg-orange-500 text-white text-xs px-4 py-2 rounded-xl font-semibold shadow-sm hover:bg-orange-600">+ Ajouter</button>
+        <button @click="openAtForm" class="bg-orange-500 text-white text-xs px-4 py-2 rounded-xl font-semibold shadow-sm hover:bg-orange-600">+ Ajouter</button>
       </div>
       <!-- Month nav -->
       <div class="flex items-center justify-between">
@@ -1624,15 +1649,17 @@ createApp({
       <div v-for="a in filteredAteliers" :key="a.id" class="bg-white rounded-2xl border border-gray-200 p-4">
         <div class="flex items-start justify-between gap-2">
           <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2 mb-1">
+            <div class="flex items-center gap-2 mb-1 flex-wrap">
               <span class="text-xs px-2 py-0.5 rounded-full font-semibold" :class="atTypeClr(a.type)">{{atTypeLabel(a.type)}}</span>
-              <span v-if="canEdit" class="text-xs text-gray-400">{{empName(a.employeeId)}}</span>
+              <span v-if="a.pending" class="text-xs px-2 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-800">⏳ À valider</span>
+              <span v-if="canAdmin" class="text-xs text-gray-400">{{empName(a.employeeId)}}</span>
             </div>
             <p class="font-semibold text-gray-800 text-sm">{{a.title}}</p>
             <p class="text-xs text-gray-500 mt-0.5">{{fmtShort(a.date)}} · {{a.hours}}h</p>
             <p v-if="a.note" class="text-xs text-gray-400 italic mt-0.5">"{{a.note}}"</p>
           </div>
-          <div v-if="canEdit" class="flex gap-1 flex-shrink-0">
+          <div v-if="canAdmin||a.employeeId===user.id" class="flex gap-1 flex-shrink-0">
+            <button v-if="canAdmin&&a.pending" @click="validateAt(a.id)" class="px-2 h-7 flex items-center justify-center rounded-xl bg-green-600 text-white text-xs font-semibold hover:bg-green-700">Valider</button>
             <button @click="openEditAt(a)" class="w-7 h-7 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-gray-200 text-sm">✏️</button>
             <button @click="deleteAt(a.id)" class="w-7 h-7 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-red-100 text-sm">🗑</button>
           </div>
@@ -1955,7 +1982,7 @@ createApp({
         <div class="grid grid-cols-2 gap-3">
           <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Durée (heures)</label>
             <input v-model="atForm.hours" type="number" min="0.5" step="0.5" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"/></div>
-          <div v-if="canEdit"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Intervenant</label>
+          <div v-if="canAdmin"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Intervenant</label>
             <select v-model="atForm.employeeId" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
               <option v-for="emp in employees" :key="emp.id" :value="emp.id">{{emp.name}}</option>
             </select></div>
