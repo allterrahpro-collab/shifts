@@ -504,7 +504,18 @@ createApp({
 
     // ── Synchro Supabase ──
     // Traitements post-chargement (nettoyage, acquisition CP, historique). _ready autorise enfin les écritures cloud.
-    _afterLoad(){ this._ready=true; this.sanitize(); this.accrueCP(); this.initHistory(); },
+    _afterLoad(){ this._ready=true; this.sanitize(); this.accrueCP(); this.migrateLeaveTypes(); this.initHistory(); },
+    // Migration unique : « sans solde » -> CP (déduit les jours déjà accordés). Idempotent (plus de sans_solde après).
+    migrateLeaveTypes(){
+      let changed=false;
+      this.requests.forEach(r=>{
+        if(r.type==='sans_solde'){
+          r.type='CP';changed=true;
+          if(r.status==='approved'){const n=datesInRange(r.dateFrom||r.date,r.dateTo||r.dateFrom||r.date).length;this.adjustLeave(r.employeeId,'CP',-n);}
+        }
+      });
+      if(changed)this.commit();
+    },
     initRemote(){
       if(!supa){this._afterLoad();return;}
       supa.from('app_state').select('k,data').then(({data,error})=>{
@@ -925,7 +936,7 @@ createApp({
     },
     // Solde concerné par un type d'absence ; null pour sans solde / maladie
     balField(type){return type==='CP'?'cpBalance':null;},
-    adjustLeave(uid,type,delta){const f=this.balField(type);if(!f)return;const u=this.users.find(x=>x.id===uid);if(u)u[f]=Math.max(0,Math.round(((u[f]||0)+delta)*10)/10);this.save();},
+    adjustLeave(uid,type,delta){const f=this.balField(type);if(!f)return;const u=this.users.find(x=>x.id===uid);if(u)u[f]=Math.round(((u[f]||0)+delta)*10)/10;this.save();},   // négatif autorisé (CP pris en avance)
 
     // ── Admin : annuler / revenir sur une décision ──
     reverseRequestEffects(req){
@@ -1552,9 +1563,8 @@ createApp({
             <span class="text-xs text-pink-700 font-medium">dont {{row.corpoHours}}h corpo (incluses dans le total travaillé)</span>
           </div>
           <div class="flex flex-wrap gap-1.5 pt-1">
-            <span class="text-xs bg-green-50 text-green-700 px-2.5 py-1 rounded-full font-medium">CP restants : {{row.emp.cpBalance}}j</span>
+            <span class="text-xs px-2.5 py-1 rounded-full font-medium" :class="row.emp.cpBalance<0?'bg-red-50 text-red-600':'bg-green-50 text-green-700'">CP restants : {{row.emp.cpBalance}}j<span v-if="row.emp.cpBalance<0"> (en avance)</span></span>
             <span class="text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full font-medium">CP posés : {{row.cpUsed}}j</span>
-            <span class="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full font-medium">Sans solde : {{row.ssCount}}j</span>
             <span class="text-xs bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full font-medium">Maladie : {{row.malCount}}j</span>
             <span v-if="canAdmin" class="text-xs bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full font-medium">Coût : {{row.cost}} €</span>
           </div>
@@ -1907,7 +1917,7 @@ createApp({
         </div>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Type</label>
           <select v-model="leaveForm.type" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
-            <option value="CP">Congé payé (CP)</option><option value="sans_solde">Congé sans solde</option><option value="maladie">Arrêt maladie</option>
+            <option value="CP">Congé payé (CP)</option><option value="maladie">Arrêt maladie</option>
           </select></div>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Note (optionnel)</label>
           <textarea v-model="leaveForm.note" rows="2" placeholder="Ex : rendez-vous médical" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none"></textarea></div>
