@@ -343,7 +343,7 @@ createApp({
       if(!this.user)return[];
       return this.requests.filter(r=>r.status==='pending_swap'&&r.proposedTo?.includes(this.user.id)&&!r.swapDecisions?.[this.user.id]);
     },
-    // Shifts à remplacer que l'utilisateur peut prendre (il est libre ce jour-là)
+    // Shifts à remplacer que l'utilisateur peut prendre (pas de chevauchement ni de congé)
     openShifts(){
       if(!this.user)return[];
       return this.requests.filter(r=>{
@@ -352,8 +352,8 @@ createApp({
         const sh=this.shifts.find(s=>s.id===r.myShiftId);
         if(!sh||sh.employeeId!==r.employeeId)return false;          // shift déjà repris / disparu
         const date=r.dateFrom||r.date;
-        const working=(this.shiftsMap[date]||[]).some(s=>s.employeeId===this.user.id);
-        return !working;                                            // seulement si dispo
+        const clash=(this.shiftsMap[date]||[]).some(s=>s.employeeId===this.user.id&&parseTime(s.start)<parseTime(sh.end)&&parseTime(s.end)>parseTime(sh.start));
+        return !clash && !this.onLeave(this.user.id,date);          // OK si aucun chevauchement et pas en congé ce jour-là
       }).sort((a,b)=>(a.dateFrom||a.date||'').localeCompare(b.dateFrom||b.date||''));
     },
     visibleSuggestions(){
@@ -913,8 +913,11 @@ createApp({
       const req=this.requests.find(r=>r.id===rid);if(!req)return;
       req.status=approve?'approved':'refused';
       if(approve){
-        const n=datesInRange(req.dateFrom||req.date,req.dateTo||req.dateFrom||req.date).length;
-        this.adjustLeave(req.employeeId,req.type,-n);
+        const dates=datesInRange(req.dateFrom||req.date,req.dateTo||req.dateFrom||req.date);
+        this.adjustLeave(req.employeeId,req.type,-dates.length);
+        // Retirer la personne du planning sur les jours validés (créneau vacant), en mémorisant pour pouvoir annuler
+        const removed=this.shifts.filter(s=>s.employeeId===req.employeeId&&dates.includes(s.date));
+        if(removed.length){req.removedShifts=removed.map(s=>({...s}));this.shifts=this.shifts.filter(s=>!(s.employeeId===req.employeeId&&dates.includes(s.date)));}
       }
       const d=req.dateFrom||req.date,lbl=req.dateFrom!==req.dateTo?fmtRange(req.dateFrom,req.dateTo):fmtShort(d);
       this.notify(req.employeeId,approve?`✅ Ton absence (${lbl}) a été validée.`:`❌ Ton absence (${lbl}) a été refusée.`);
@@ -935,6 +938,11 @@ createApp({
       if(req.swapBy&&req.myShiftId){
         const s=this.shifts.find(x=>x.id===req.myShiftId);
         if(s&&s.employeeId===req.swapBy)s.employeeId=req.employeeId;
+      }
+      // si la validation avait retiré des shifts du planning, les restaurer
+      if(req.removedShifts&&req.removedShifts.length){
+        req.removedShifts.forEach(s=>{if(!this.shifts.some(x=>x.id===s.id))this.shifts.push({...s});});
+        req.removedShifts=null;
       }
     },
     revertDecision(rid){
