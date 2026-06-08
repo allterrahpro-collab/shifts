@@ -70,6 +70,7 @@ const fmtMin = m => { m=Math.max(0,Math.min(24*60,m)); return String(Math.floor(
 const validShift = s => s&&s.employeeId&&s.date&&s.start&&s.end;
 const monthKey = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
 const monthsBetween = (fromKey,toKey) => { const[fy,fm]=fromKey.split('-').map(Number),[ty,tm]=toKey.split('-').map(Number); return (ty-fy)*12+(tm-fm); };
+const mondayKey = ds => { const d=new Date(ds+'T00:00:00'); d.setDate(d.getDate()-((d.getDay()+6)%7)); return ymd(d); };
 // Jours fériés français (fixes + basés sur Pâques)
 const _holiCache={};
 function frenchHolidays(year){
@@ -383,7 +384,7 @@ createApp({
         const extra=this.weeklyExtra(emp.id,y,m);   // heures sup/compl. comptées À LA SEMAINE
         const approved=this.requests.filter(r=>{const d=new Date(r.dateFrom||r.date||'');return r.employeeId===emp.id&&r.status==='approved'&&d.getFullYear()===y&&d.getMonth()===m;});
         return{emp,worked:Math.round(worked*10)/10,contract:Math.round(contract*10)/10,delta:Math.round((worked-contract)*10)/10,extra,
-          cpUsed:approved.filter(r=>r.type==='CP').length,ssCount:approved.filter(r=>r.type==='sans_solde').length,malCount:approved.filter(r=>r.type==='maladie').length,
+          cpUsed:approved.filter(r=>r.type==='CP'&&r.cp!==false).length,ssCount:approved.filter(r=>r.type==='sans_solde').length,malCount:approved.filter(r=>r.type==='maladie').length,
           atHours:Math.round(atH*10)/10,corpoHours:Math.round(corpoH*10)/10,cost:Math.round(Math.max(worked,contract)*(+emp.wage||0))};
       });
     },
@@ -871,13 +872,26 @@ createApp({
       const{dateFrom,dateTo,type,note}=this.leaveForm;
       if(!dateFrom||!dateTo)return;
       const from=dateFrom<=dateTo?dateFrom:dateTo,to=dateFrom<=dateTo?dateTo:dateFrom;
-      const dates=datesInRange(from,to);
-      const groupId=dates.length>1?uid():null;     // chaque jour devient une sous-demande
+      const dpw=+this.user.daysPerWeek||5;   // jours travaillés / semaine = plafond de CP décomptés par semaine
+      const all=datesInRange(from,to);
+      const hasShift=date=>(this.shiftsMap[date]||[]).some(s=>s.employeeId===this.user.id);
+      // Plafond CP par semaine = dpw, en priorisant les jours avec shift
+      const byWeek={};
+      all.forEach(d=>{(byWeek[mondayKey(d)]=byWeek[mondayKey(d)]||[]).push(d);});
+      const cpSet=new Set();
+      Object.values(byWeek).forEach(days=>{
+        const ordered=[...days.filter(hasShift),...days.filter(d=>!hasShift(d))];
+        ordered.slice(0,dpw).forEach(d=>cpSet.add(d));
+      });
+      // On crée une demande par jour qui a un shift (à remplacer) OU qui compte un CP
+      const dates=all.filter(d=>hasShift(d)||cpSet.has(d));
+      if(!dates.length){alert('Rien à poser sur cette période.');return;}
+      const groupId=dates.length>1?uid():null;
       const waLines=[];
       dates.forEach(date=>{
         const dayS=this.shiftsMap[date]||[],myShift=dayS.find(s=>s.employeeId===this.user.id);
         const shifted=new Set(dayS.map(s=>s.employeeId)),avail=this.employees.filter(e=>e.id!==this.user.id&&!shifted.has(e.id));
-        this.requests.push({id:uid(),groupId,groupFrom:from,groupTo:to,employeeId:this.user.id,dateFrom:date,dateTo:date,type,note,
+        this.requests.push({id:uid(),groupId,groupFrom:from,groupTo:to,employeeId:this.user.id,dateFrom:date,dateTo:date,type,note,cp:cpSet.has(date),
           status:myShift?'pending_swap':'pending',proposedTo:myShift?avail.map(e=>e.id):[],swapDecisions:{},myShiftId:myShift?.id||null,at:todayStr()});
         if(myShift){
           if(avail.length>0){
@@ -887,7 +901,7 @@ createApp({
             this.notify('dan',`⚠️ ${this.user.name} : aucun remplaçant dispo le ${fmtShort(date)}. Décision requise.`);
           }
         } else {
-          this.notify('dan',`📋 ${this.user.name} demande un ${this.typeLabel(type)} le ${fmtShort(date)} (pas de shift ce jour-là).`);
+          this.notify('dan',`📋 ${this.user.name} pose un ${this.typeLabel(type)} le ${fmtShort(date)} (jour sans shift).`);
         }
       });
       if(waLines.length>0){
@@ -905,7 +919,7 @@ createApp({
       if(accept){
         const s=this.shifts.find(x=>x.id===req.myShiftId);if(s){s.employeeId=this.user.id;this.save();}
         req.status='approved';req.swapBy=this.user.id;
-        this.adjustLeave(req.employeeId,req.type,-1);
+        if(req.cp!==false)this.adjustLeave(req.employeeId,req.type,-1);
         const d=req.dateFrom||req.date;
         this.notify(req.employeeId,`✅ ${this.user.name} prend ton shift du ${fmtShort(d)} ! Ton jour off est accordé.`);
         this.notify('dan',`✅ Swap OK : ${this.user.name} reprend le créneau de ${this.empName(req.employeeId)} le ${fmtShort(d)}.`);
@@ -925,7 +939,7 @@ createApp({
       req.status=approve?'approved':'refused';
       if(approve){
         const dates=datesInRange(req.dateFrom||req.date,req.dateTo||req.dateFrom||req.date);
-        this.adjustLeave(req.employeeId,req.type,-dates.length);
+        if(req.cp!==false)this.adjustLeave(req.employeeId,req.type,-dates.length);   // ne décompte pas les jours hors plafond
         // Retirer la personne du planning sur les jours validés (créneau vacant), en mémorisant pour pouvoir annuler
         const removed=this.shifts.filter(s=>s.employeeId===req.employeeId&&dates.includes(s.date));
         if(removed.length){req.removedShifts=removed.map(s=>({...s}));this.shifts=this.shifts.filter(s=>!(s.employeeId===req.employeeId&&dates.includes(s.date)));}
@@ -941,7 +955,7 @@ createApp({
     // ── Admin : annuler / revenir sur une décision ──
     reverseRequestEffects(req){
       // recréditer le solde CP si l'absence avait été accordée
-      if(req.status==='approved'){
+      if(req.status==='approved'&&req.cp!==false){
         const n=datesInRange(req.dateFrom||req.date,req.dateTo||req.dateFrom||req.date).length;
         this.adjustLeave(req.employeeId,req.type,+n);
       }
@@ -990,7 +1004,7 @@ createApp({
       if(sh){sh.employeeId=this.user.id;}
       req.swapDecisions=req.swapDecisions||{};req.swapDecisions[this.user.id]='yes';
       req.status='approved';req.swapBy=this.user.id;
-      this.adjustLeave(req.employeeId,req.type,-1);
+      if(req.cp!==false)this.adjustLeave(req.employeeId,req.type,-1);
       this.notify(req.employeeId,`✅ ${this.user.name} prend ton shift du ${fmtShort(d)} ! Ton jour off est accordé.`);
       this.notify('dan',`✅ ${this.user.name} se positionne sur le shift de ${this.empName(req.employeeId)} le ${fmtShort(d)}.`);
       this.commit();
@@ -1045,22 +1059,22 @@ createApp({
     markRead(){this.notifications.forEach(n=>{if(n.userId===this.user?.id)n.read=true;});this.save();},
 
     // ── Admin ──
-    startEdit(emp){this.editEmp=emp;this.empForm={...emp};if(this.empForm.cpRate==null)this.empForm.cpRate=this.cpPerMonth;},
+    startEdit(emp){this.editEmp=emp;this.empForm={...emp};if(this.empForm.cpRate==null)this.empForm.cpRate=this.cpPerMonth;if(this.empForm.daysPerWeek==null)this.empForm.daysPerWeek=5;},
     cancelEdit(){this.editEmp=null;},
     saveEmp(){
       const i=this.users.findIndex(u=>u.id===this.editEmp.id);
-      if(i>=0)this.users[i]={...this.users[i],...this.empForm,hoursPerWeek:+this.empForm.hoursPerWeek,cpBalance:+this.empForm.cpBalance,wage:+(this.empForm.wage||0),cpRate:+(this.empForm.cpRate||0)};
+      if(i>=0)this.users[i]={...this.users[i],...this.empForm,hoursPerWeek:+this.empForm.hoursPerWeek,cpBalance:+this.empForm.cpBalance,wage:+(this.empForm.wage||0),cpRate:+(this.empForm.cpRate||0),daysPerWeek:+(this.empForm.daysPerWeek||5)};
       this.commit();this.editEmp=null;
     },
     // Créer un employé
     slugId(name){let b=(name||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'').slice(0,12)||'emp';let id=b,i=2;while(this.users.some(u=>u.id===id)){id=b+i;i++;}return id;},
-    openNewEmp(){this.editEmp=null;this.newEmp={name:'',email:'',contractType:'CDI',hoursPerWeek:35,cpBalance:0,wage:12,cpRate:this.cpPerMonth,hasAteliers:false};this.showNewEmp=true;},
+    openNewEmp(){this.editEmp=null;this.newEmp={name:'',email:'',contractType:'CDI',hoursPerWeek:35,daysPerWeek:5,cpBalance:0,wage:12,cpRate:this.cpPerMonth,hasAteliers:false};this.showNewEmp=true;},
     createEmp(){
       const f=this.newEmp;
       if(!f.name||!f.name.trim()){alert('Le nom est requis.');return;}
       const id=this.slugId(f.name.trim());
       this.users.push({id,name:f.name.trim(),email:f.email||'',role:'employee',
-        hoursPerWeek:+f.hoursPerWeek||0,cpBalance:+f.cpBalance||0,
+        hoursPerWeek:+f.hoursPerWeek||0,daysPerWeek:+f.daysPerWeek||5,cpBalance:+f.cpBalance||0,
         wage:+f.wage||0,cpRate:+f.cpRate||0,contractType:f.contractType||'CDI',
         hasAteliers:!!f.hasAteliers,cpAccruedThru:monthKey(new Date())});
       this.commit();this.showNewEmp=false;
@@ -1758,6 +1772,7 @@ createApp({
                 <option value="CDI">CDI</option><option value="CDD">CDD</option><option value="Freelance">Freelance</option><option value="Stage">Stage</option><option value="Alternance">Alternance</option>
               </select></div>
             <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Heures/sem</label><input v-model="empForm.hoursPerWeek" type="number" min="0" max="50" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
+            <div class="col-span-2"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Jours travaillés / sem (max CP/sem sur une plage)</label><input v-model="empForm.daysPerWeek" type="number" min="0" max="7" step="1" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
             <div class="col-span-2"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Solde CP (jours)</label><input v-model="empForm.cpBalance" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
             <div class="col-span-2"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Taux horaire (€/h)</label><input v-model="empForm.wage" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
             <div class="col-span-2"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">CP acquis / mois</label><input v-model="empForm.cpRate" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
@@ -2030,6 +2045,7 @@ createApp({
             <option value="CDI">CDI</option><option value="CDD">CDD</option><option value="Freelance">Freelance</option><option value="Stage">Stage</option><option value="Alternance">Alternance</option>
           </select></div>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Heures/sem</label><input v-model="newEmp.hoursPerWeek" type="number" min="0" max="50" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
+        <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Jours/sem</label><input v-model="newEmp.daysPerWeek" type="number" min="0" max="7" step="1" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Taux horaire (€/h)</label><input v-model="newEmp.wage" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Solde CP</label><input v-model="newEmp.cpBalance" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">CP / mois</label><input v-model="newEmp.cpRate" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
