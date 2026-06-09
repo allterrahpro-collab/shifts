@@ -587,6 +587,12 @@ createApp({
     // ── Week nav ──
     prevWeek(){this.weekOffset--;this.clearSel();},
     nextWeek(){this.weekOffset++;this.clearSel();},
+    jumpMonth(delta){
+      const monOf=d=>{const x=new Date(d);const dw=x.getDay(),b=dw===0?6:dw-1;x.setDate(x.getDate()-b);x.setHours(0,0,0,0);return x;};
+      const cur=new Date(this.weekDays[0].ds+'T00:00:00');cur.setMonth(cur.getMonth()+delta);
+      const target=monOf(cur),base=monOf(new Date());
+      this.weekOffset=Math.round((target-base)/(7*864e5));this.clearSel();
+    },
     goToday(){this.weekOffset=0;},
     clearSel(){this.selectedCell=null;this.editingCell=null;this.selDays=[];this.selShiftId=null;this.targetCell=null;},
 
@@ -914,7 +920,7 @@ createApp({
       const req=this.requests.find(r=>r.id===rid);if(!req)return;
       req.swapDecisions[this.user.id]=accept?'yes':'no';
       if(accept){
-        const s=this.shifts.find(x=>x.id===req.myShiftId);if(s){s.employeeId=this.user.id;this.save();}
+        const s=this.shifts.find(x=>x.id===req.myShiftId);if(s){s.coveredFor=req.employeeId;s.employeeId=this.user.id;this.save();}
         req.status='approved';req.swapBy=this.user.id;
         if(req.cp!==false)this.adjustLeave(req.employeeId,req.type,-1);
         const d=req.dateFrom||req.date;
@@ -959,7 +965,7 @@ createApp({
       // si un échange avait réattribué le shift, le rendre au demandeur
       if(req.swapBy&&req.myShiftId){
         const s=this.shifts.find(x=>x.id===req.myShiftId);
-        if(s&&s.employeeId===req.swapBy)s.employeeId=req.employeeId;
+        if(s&&s.employeeId===req.swapBy){s.employeeId=req.employeeId;delete s.coveredFor;}
       }
       // si la validation avait retiré des shifts du planning, les restaurer
       if(req.removedShifts&&req.removedShifts.length){
@@ -998,7 +1004,7 @@ createApp({
       if(sh&&this.onLeave(this.user.id,d)){alert('Tu es en absence validée le '+fmtShort(d)+'.');return;}
       if(sh&&this.overlaps(this.user.id,d,sh.start,sh.end,sh.id)){alert('Tu as déjà un shift qui chevauche ce créneau.');return;}
       if(!confirm(`Prendre le shift de ${this.empName(req.employeeId)} le ${fmtShort(d)}${sh?' ('+sh.start+'–'+sh.end+')':''} ?`))return;
-      if(sh){sh.employeeId=this.user.id;}
+      if(sh){sh.coveredFor=req.employeeId;sh.employeeId=this.user.id;}
       req.swapDecisions=req.swapDecisions||{};req.swapDecisions[this.user.id]='yes';
       req.status='approved';req.swapBy=this.user.id;
       if(req.cp!==false)this.adjustLeave(req.employeeId,req.type,-1);
@@ -1328,12 +1334,18 @@ createApp({
       <!-- Week / Spreadsheet view -->
       <div v-else-if="planView==='week'">
         <div class="bg-white px-4 py-2.5 flex items-center justify-between border-b border-gray-100">
-          <button @click="prevWeek" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100"><svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg></button>
+          <div class="flex items-center gap-1">
+            <button @click="jumpMonth(-1)" title="Mois précédent" class="px-1.5 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 text-sm font-bold">«</button>
+            <button @click="prevWeek" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100"><svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg></button>
+          </div>
           <div class="text-center">
             <p class="font-semibold text-gray-800 text-xs">{{weekLabel}}</p>
             <button v-if="weekOffset!==0" @click="goToday" class="text-[11px] text-green-600 hover:underline mt-0.5">← Aujourd'hui</button>
           </div>
-          <button @click="nextWeek" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100"><svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></button>
+          <div class="flex items-center gap-1">
+            <button @click="nextWeek" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100"><svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></button>
+            <button @click="jumpMonth(1)" title="Mois suivant" class="px-1.5 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 text-sm font-bold">»</button>
+          </div>
         </div>
         <!-- Navigation rapide + copie de semaine -->
         <div class="bg-white border-b border-gray-100 px-3 py-2 flex items-center gap-2 overflow-x-auto whitespace-nowrap">
@@ -1406,8 +1418,8 @@ createApp({
                     <template v-for="s in shiftsAt(day.ds,h)" :key="s.id">
                       <div class="achip" :draggable="canEdit?'true':'false'" :class="[empColor(s.employeeId).bg,empColor(s.employeeId).text,isSelShift(s)?'sels':'']"
                         @click.stop="pickShift(s)" @dblclick.stop="openEditShift(s)" @dragstart="onDragStart(s,$event)"
-                        :title="empName(s.employeeId)+' · '+s.start+'–'+s.end">
-                        <span>{{empName(s.employeeId)}}</span><span v-if="isShiftStart(s,h)" style="opacity:.7"> · {{s.start}}</span>
+                        :title="empName(s.employeeId)+' · '+s.start+'–'+s.end+(s.coveredFor?' · remplace '+empName(s.coveredFor):'')">
+                        <span>{{empName(s.employeeId)}}</span><span v-if="s.coveredFor" style="opacity:.85" :title="'remplace '+empName(s.coveredFor)"> ↩{{empName(s.coveredFor)}}</span><span v-if="isShiftStart(s,h)" style="opacity:.7"> · {{s.start}}</span>
                       </div>
                     </template>
                   </div>
