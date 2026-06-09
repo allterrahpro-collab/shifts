@@ -578,9 +578,7 @@ createApp({
     prevMonth(){if(this.planMonth===0){this.planMonth=11;this.planYear--;}else this.planMonth--;},
     nextMonth(){if(this.planMonth===11){this.planMonth=0;this.planYear++;}else this.planMonth++;},
     dayShiftsFor(ds){
-      const all=this.shiftsMap[ds]||[];
-      if(this.canEdit||this.isPatron)return all;
-      return all.filter(s=>s.employeeId===this.user?.id);
+      return this.shiftsMap[ds]||[];   // tout le monde voit le planning complet (qui travaille avec qui)
     },
     openDay(ds){this.dayDate=ds;this.showDay=true;},
     closeDay(){this.showDay=false;this.dayDate=null;},
@@ -598,9 +596,8 @@ createApp({
     hourLabel(h){return String(h).padStart(2,'0')+'h';},
     shiftsAt(date,hour){
       const lo=hour*60, hi=(hour+1)*60;
-      let list=(this.shiftsMap[date]||[]).filter(s=>parseTime(s.start)<hi&&parseTime(s.end)>lo);
-      if(!(this.canEdit||this.isPatron)) list=list.filter(s=>s.employeeId===this.user?.id);
-      return list.sort((a,b)=>a.start.localeCompare(b.start));
+      const list=(this.shiftsMap[date]||[]).filter(s=>parseTime(s.start)<hi&&parseTime(s.end)>lo);
+      return list.sort((a,b)=>a.start.localeCompare(b.start));   // tout le monde voit qui travaille
     },
     isShiftStart(s,hour){return Math.floor(parseTime(s.start)/60)===hour;},
     isSelShift(s){return this.selShiftId===s.id;},
@@ -1471,6 +1468,8 @@ createApp({
               <p class="font-semibold text-gray-800 text-sm"><span v-if="canEdit||isPatron">{{empName(req.employeeId)}} — </span>{{reqDateLabel(req)}}</p>
               <p class="text-xs text-gray-500 mt-0.5">{{typeLabel(req.type)}}</p>
               <p v-if="req.groupId" class="text-[10px] text-violet-500 font-medium mt-0.5">↳ congé du {{fmtShort(req.groupFrom)}} au {{fmtShort(req.groupTo)}} (jour par jour)</p>
+              <p v-if="req.swapBy" class="text-xs text-green-700 font-medium mt-0.5">🔄 Shift repris par {{empName(req.swapBy)}}</p>
+              <p v-else-if="req.status==='approved'&&req.myShiftId" class="text-xs text-gray-500 mt-0.5">Validé sans remplaçant (créneau libéré)</p>
               <p v-if="req.note" class="text-xs text-gray-400 italic mt-0.5">"{{req.note}}"</p>
             </div>
             <span class="flex-shrink-0 text-xs px-2.5 py-1 rounded-full font-semibold" :class="statusClr(req.status)">{{statusLabel(req.status)}}</span>
