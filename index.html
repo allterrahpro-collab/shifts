@@ -367,6 +367,11 @@ createApp({
       const t=todayStr();
       return this.shifts.filter(s=>s.employeeId===this.user?.id&&s.date>=t).sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));
     },
+    // Shifts ajustables : à venir + passés récents (120 j), le plus récent en haut
+    myShiftsForSugg(){
+      const min=new Date();min.setDate(min.getDate()-120);const lo=ymd(min);
+      return this.shifts.filter(s=>s.employeeId===this.user?.id&&s.date>=lo).sort((a,b)=>b.date.localeCompare(a.date)||b.start.localeCompare(a.start));
+    },
 
     // ─── Reports: hours ───
     reportData(){
@@ -505,7 +510,17 @@ createApp({
 
     // ── Synchro Supabase ──
     // Traitements post-chargement (nettoyage, acquisition CP, historique). _ready autorise enfin les écritures cloud.
-    _afterLoad(){ this._ready=true; this.sanitize(); this.accrueCP(); this.migrateLeaveTypes(); this.initHistory(); },
+    _afterLoad(){ this._ready=true; this.sanitize(); this.normalizeCpRate(); this.accrueCP(); this.migrateLeaveTypes(); this.initHistory(); },
+    // Migration unique : acquisition fixée à 2,5 j/mois pour chaque salarié (0 pour les freelances). Idempotent via cpRateNorm.
+    normalizeCpRate(){
+      let changed=false;
+      this.users.forEach(u=>{
+        if(u.cpRateNorm)return;
+        if(u.role!=='patron') u.cpRate = (u.contractType==='Freelance') ? 0 : 2.5;
+        u.cpRateNorm=true; changed=true;
+      });
+      if(changed)this.commit();
+    },
     // Migration unique : « sans solde » -> CP (déduit les jours déjà accordés). Idempotent (plus de sans_solde après).
     migrateLeaveTypes(){
       let changed=false;
@@ -995,6 +1010,20 @@ createApp({
       this.notify(req.employeeId,`🗑 Ta demande (${lbl}) a été annulée par l'admin.`);
       this.commit();
     },
+    // Un employé annule sa propre demande (recrédite le CP / restitue le shift si elle était accordée)
+    cancelOwn(rid){
+      const req=this.requests.find(r=>r.id===rid);if(!req)return;
+      if(req.employeeId!==this.user.id&&!this.canAdmin)return;
+      if(!confirm('Annuler ta demande de congé ?'))return;
+      const hadSwap=req.swapBy;
+      this.reverseRequestEffects(req);
+      const lbl=req.dateFrom!==req.dateTo?fmtRange(req.dateFrom,req.dateTo):fmtShort(req.dateFrom||req.date);
+      this.requests=this.requests.filter(r=>r.id!==rid);
+      this.notify('dan',`🗑 ${this.user.name} a annulé sa demande de congé (${lbl}).`);
+      this.notify('julien',`🗑 ${this.user.name} a annulé sa demande de congé (${lbl}).`);
+      if(hadSwap&&hadSwap!==this.user.id)this.notify(hadSwap,`ℹ️ ${this.user.name} a annulé son congé (${lbl}) : le shift lui revient.`);
+      this.commit();
+    },
 
     // ── Se positionner sur un shift à remplacer ──
     claimShift(rid){
@@ -1334,17 +1363,17 @@ createApp({
       <!-- Week / Spreadsheet view -->
       <div v-else-if="planView==='week'">
         <div class="bg-white px-4 py-2.5 flex items-center justify-between border-b border-gray-100">
-          <div class="flex items-center gap-1">
-            <button @click="jumpMonth(-1)" title="Mois précédent" class="px-1.5 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 text-sm font-bold">«</button>
-            <button @click="prevWeek" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100"><svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg></button>
+          <div class="flex items-center gap-0.5">
+            <button @click="jumpMonth(-1)" title="Mois précédent" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100"><svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.5 19l-7-7 7-7M11.5 19l-7-7 7-7"/></svg></button>
+            <button @click="prevWeek" title="Semaine précédente" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100"><svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg></button>
           </div>
           <div class="text-center">
             <p class="font-semibold text-gray-800 text-xs">{{weekLabel}}</p>
             <button v-if="weekOffset!==0" @click="goToday" class="text-[11px] text-green-600 hover:underline mt-0.5">← Aujourd'hui</button>
           </div>
-          <div class="flex items-center gap-1">
-            <button @click="nextWeek" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100"><svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></button>
-            <button @click="jumpMonth(1)" title="Mois suivant" class="px-1.5 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 text-sm font-bold">»</button>
+          <div class="flex items-center gap-0.5">
+            <button @click="nextWeek" title="Semaine suivante" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100"><svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></button>
+            <button @click="jumpMonth(1)" title="Mois suivant" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100"><svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.5 5l7 7-7 7M12.5 5l7 7-7 7"/></svg></button>
           </div>
         </div>
         <!-- Navigation rapide + copie de semaine -->
@@ -1493,6 +1522,9 @@ createApp({
             </template>
             <button v-else @click="revertDecision(req.id)" class="flex-1 bg-amber-50 text-amber-700 border border-amber-200 text-xs py-2 rounded-xl font-semibold">↩️ Revenir sur la décision</button>
             <button @click="cancelRequest(req.id)" class="bg-gray-100 text-gray-600 text-xs px-3 py-2 rounded-xl font-semibold hover:bg-red-50 hover:text-red-600">Annuler</button>
+          </div>
+          <div v-else-if="req.employeeId===user.id && req.status!=='rejected'" class="pt-1 border-t border-gray-100">
+            <button @click="cancelOwn(req.id)" class="w-full bg-gray-100 text-gray-600 text-xs py-2 rounded-xl font-semibold hover:bg-red-50 hover:text-red-600">Annuler ma demande</button>
           </div>
         </div>
       </div>
@@ -1972,9 +2004,9 @@ createApp({
           <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Mon shift</label>
             <select v-model="suggForm.shiftId" @change="onSuggShiftPick" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
               <option value="">— choisir un shift —</option>
-              <option v-for="s in myUpcomingShifts" :key="s.id" :value="s.id">{{fmtShort(s.date)}} · {{s.start}}–{{s.end}}</option>
+              <option v-for="s in myShiftsForSugg" :key="s.id" :value="s.id">{{fmtShort(s.date)}} · {{s.start}}–{{s.end}}{{s.date<todayStr()?' (passé)':''}}</option>
             </select></div>
-          <div v-if="myUpcomingShifts.length===0" class="text-xs text-gray-400">Tu n'as pas de shift à venir à ajuster.</div>
+          <div v-if="myShiftsForSugg.length===0" class="text-xs text-gray-400">Aucun shift à ajuster (à venir ou récent).</div>
           <div class="grid grid-cols-2 gap-3">
             <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Nouveau début</label><input v-model="suggForm.start" type="time" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
             <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Nouvelle fin</label><input v-model="suggForm.end" type="time" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
