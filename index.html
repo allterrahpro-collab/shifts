@@ -1134,6 +1134,25 @@ createApp({
     },
     currentTipsAmount(){const e=this.tips.find(t=>t.year===this.repYear&&t.month===this.repMonth);return e?e.amount:null;},
 
+    // ── Pourboires : suivi des versements ──
+    tipsEntry(){return this.tips.find(t=>t.year===this.repYear&&t.month===this.repMonth);},
+    tipPaid(empId){const e=this.tipsEntry();return !!(e&&e.paid&&e.paid[empId]);},
+    tipPaidAt(empId){const e=this.tipsEntry();return (e&&e.paid&&e.paid[empId]&&e.paid[empId].at)||'';},
+    toggleTipPaid(empId,share){
+      const e=this.tipsEntry();if(!e)return;
+      if(!e.paid)e.paid={};
+      if(e.paid[empId])delete e.paid[empId];
+      else e.paid[empId]={at:todayStr(),amount:share};
+      this.commit();
+    },
+    setAllTipsPaid(paid){
+      const e=this.tipsEntry();if(!e)return;
+      if(!e.paid)e.paid={};
+      if(paid)this.tipsData.employees.forEach(d=>{if(!e.paid[d.emp.id])e.paid[d.emp.id]={at:todayStr(),amount:d.share};});
+      else e.paid={};
+      this.commit();
+    },
+
     // ── Ateliers ──
     prevAt(){if(this.atMonth===0){this.atMonth=11;this.atYear--;}else this.atMonth--;},
     nextAt(){if(this.atMonth===11){this.atMonth=0;this.atYear++;}else this.atMonth++;},
@@ -1679,24 +1698,47 @@ createApp({
             Aucune heure travaillée ce mois — impossible de calculer le split.
           </div>
           <div v-else class="space-y-2">
+            <div class="flex items-center justify-between px-1">
+              <p class="text-[11px] text-gray-400 font-medium">
+                Versés : {{tipsData.employees.filter(d=>tipPaid(d.emp.id)).length}} / {{tipsData.employees.length}}
+              </p>
+              <button v-if="canEdit||isPatron"
+                @click="setAllTipsPaid(tipsData.employees.filter(d=>tipPaid(d.emp.id)).length < tipsData.employees.length)"
+                class="text-[11px] font-semibold text-green-700 hover:underline">
+                {{tipsData.employees.filter(d=>tipPaid(d.emp.id)).length < tipsData.employees.length ? 'Tout marquer versé' : 'Tout décocher'}}
+              </button>
+            </div>
             <div v-for="d in tipsData.employees" :key="d.emp.id"
-              class="bg-white rounded-2xl border border-gray-200 p-4 flex items-center gap-3">
+              class="rounded-2xl border p-4 flex items-center gap-3 transition-colors"
+              :class="tipPaid(d.emp.id)?'bg-green-50 border-green-200':'bg-white border-gray-200'">
+              <input type="checkbox" :disabled="!(canEdit||isPatron)" :checked="tipPaid(d.emp.id)"
+                @change="toggleTipPaid(d.emp.id,d.share)" title="Pourboires versés"
+                class="w-5 h-5 flex-shrink-0 rounded accent-green-600 cursor-pointer"/>
               <span class="w-3 h-3 rounded-full flex-shrink-0" :class="empColor(d.emp.id).dot"></span>
               <div class="flex-1 min-w-0">
-                <p class="font-semibold text-gray-800 text-sm">{{d.emp.name}}</p>
-                <p class="text-[11px] text-gray-400 mt-0.5"><span>{{d.wkdyH}}h sem.</span><span v-if="d.wkndH>0" class="ml-2 text-amber-600 font-medium">+ {{d.wkndH}}h WE</span><span class="ml-2 text-gray-500">= {{d.weighted}}h pond.</span></p>
+                <p class="font-semibold text-sm" :class="tipPaid(d.emp.id)?'text-green-800':'text-gray-800'">{{d.emp.name}}</p>
+                <p v-if="tipPaid(d.emp.id)" class="text-[11px] text-green-600 font-medium mt-0.5">✓ Versé le {{fmtShort(tipPaidAt(d.emp.id))}}</p>
+                <p v-else class="text-[11px] text-gray-400 mt-0.5"><span>{{d.wkdyH}}h sem.</span><span v-if="d.wkndH>0" class="ml-2 text-amber-600 font-medium">+ {{d.wkndH}}h WE</span><span class="ml-2 text-gray-500">= {{d.weighted}}h pond.</span></p>
               </div>
               <div class="text-right flex-shrink-0">
-                <p class="font-bold text-green-700 text-lg">{{fmt2(d.share)}} €</p>
+                <p class="font-bold text-lg" :class="tipPaid(d.emp.id)?'text-green-600':'text-green-700'">{{fmt2(d.share)}} €</p>
                 <p class="text-[10px] text-gray-400">{{Math.round(d.weighted/tipsData.totalW*100)}}%</p>
               </div>
             </div>
           </div>
 
           <!-- Total check -->
-          <div class="bg-green-50 rounded-2xl border border-green-200 px-4 py-3 flex justify-between items-center">
-            <span class="text-sm font-semibold text-green-800">Total distribué</span>
-            <span class="font-bold text-green-700 text-lg">{{fmt2(tipsData.employees.reduce((s,d)=>s+d.share,0))}} €</span>
+          <div class="bg-green-50 rounded-2xl border border-green-200 px-4 py-3 space-y-1">
+            <div class="flex justify-between items-center">
+              <span class="text-sm font-semibold text-green-800">Total distribué</span>
+              <span class="font-bold text-green-700 text-lg">{{fmt2(tipsData.employees.reduce((s,d)=>s+d.share,0))}} €</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-xs font-medium text-green-700/70">Reste à verser</span>
+              <span class="font-semibold text-sm" :class="tipsData.employees.filter(d=>!tipPaid(d.emp.id)).length?'text-amber-700':'text-green-600'">
+                {{fmt2(tipsData.employees.filter(d=>!tipPaid(d.emp.id)).reduce((s,d)=>s+d.share,0))}} €
+              </span>
+            </div>
           </div>
         </div>
       </div>
