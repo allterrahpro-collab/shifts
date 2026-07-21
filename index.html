@@ -59,6 +59,8 @@ const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-$
 const todayStr = () => ymd(new Date());
 const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 const DAYS_SHORT = ['L','M','M','J','V','S','D'];
+// Métiers (indépendants des droits patron/manager/employé). Un employé peut en avoir 0, 1 ou plusieurs.
+const JOB_ROLES = [{v:'barista',l:'Barista'},{v:'animateur',l:'Animateur'},{v:'commis',l:'Commis'}];
 
 const fmtLong  = d => d ? new Date(d+'T00:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}) : '';
 const fmtShort = d => d ? new Date(d+'T00:00:00').toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'}) : '';
@@ -234,7 +236,7 @@ createApp({
       history:[], histIdx:-1, histLock:false,
       // sync cloud
       online:false,
-      MONTHS, DAYS_SHORT,
+      MONTHS, DAYS_SHORT, JOB_ROLES,
     };
   },
 
@@ -354,6 +356,7 @@ createApp({
         if(!sh||sh.employeeId!==r.employeeId)return false;          // shift déjà repris / disparu
         const date=r.dateFrom||r.date;
         const clash=(this.shiftsMap[date]||[]).some(s=>s.employeeId===this.user.id&&parseTime(s.start)<parseTime(sh.end)&&parseTime(s.end)>parseTime(sh.start));
+        if(!this.canFillShift(this.user.id,sh))return false;        // rôle requis non détenu
         return !clash && !this.onLeave(this.user.id,date);          // OK si aucun chevauchement et pas en congé ce jour-là
       }).sort((a,b)=>(a.dateFrom||a.date||'').localeCompare(b.dateFrom||b.date||''));
     },
@@ -871,8 +874,26 @@ createApp({
     },
 
     // ── Shift CRUD (month view) ──
-    openAddShift(date){this.editShift=null;this.shiftForm={employeeId:this.employees[0]?.id||'',date:date||todayStr(),start:'09:00',end:'17:00'};this.showShift=true;},
-    openEditShift(s){this.editShift=s;this.shiftForm={...s};this.showShift=true;},
+    // ── Métiers (barista / animateur / commis) ──
+    rolesOf(empId){const u=this.users.find(x=>x.id===empId);return (u&&Array.isArray(u.jobRoles))?u.jobRoles:[];},
+    roleLabel(v){const r=JOB_ROLES.find(x=>x.v===v);return r?r.l:v;},
+    rolesLabel(empId){const r=this.rolesOf(empId);return r.length?r.map(v=>this.roleLabel(v)).join(', '):'';},
+    // Éligible si : le shift n'exige aucun rôle, OU la personne n'a aucun rôle défini, OU elle détient le rôle requis.
+    canFillShift(empId,sh){
+      const req=sh&&sh.roleReq;
+      if(!req)return true;
+      const roles=this.rolesOf(empId);
+      if(!roles.length)return true;
+      return roles.includes(req);
+    },
+    toggleEmpRole(form,v){
+      if(!Array.isArray(form.jobRoles))form.jobRoles=[];
+      const i=form.jobRoles.indexOf(v);
+      if(i>=0)form.jobRoles.splice(i,1);else form.jobRoles.push(v);
+    },
+
+    openAddShift(date){this.editShift=null;this.shiftForm={employeeId:this.employees[0]?.id||'',date:date||todayStr(),start:'09:00',end:'17:00',roleReq:''};this.showShift=true;},
+    openEditShift(s){this.editShift=s;this.shiftForm={roleReq:'',...s};this.showShift=true;},
     saveShift(){
       const f=this.shiftForm;
       if(!f.employeeId||!f.date||!f.start||!f.end)return;
@@ -908,7 +929,9 @@ createApp({
       const waLines=[];
       dates.forEach(date=>{
         const dayS=this.shiftsMap[date]||[],myShift=dayS.find(s=>s.employeeId===this.user.id);
-        const shifted=new Set(dayS.map(s=>s.employeeId)),avail=this.employees.filter(e=>e.id!==this.user.id&&!shifted.has(e.id));
+        const shifted=new Set(dayS.map(s=>s.employeeId));
+        // seuls les collègues libres ET éligibles au rôle requis par le shift sont sollicités
+        const avail=this.employees.filter(e=>e.id!==this.user.id&&!shifted.has(e.id)&&(!myShift||this.canFillShift(e.id,myShift)));
         this.requests.push({id:uid(),groupId,groupFrom:from,groupTo:to,employeeId:this.user.id,dateFrom:date,dateTo:date,type,note,cp:cpSet.has(date),
           status:myShift?'pending_swap':'pending',proposedTo:myShift?avail.map(e=>e.id):[],swapDecisions:{},myShiftId:myShift?.id||null,at:todayStr()});
         if(myShift){
@@ -933,6 +956,8 @@ createApp({
     },
     respondSwap(rid,accept){
       const req=this.requests.find(r=>r.id===rid);if(!req)return;
+      const shReq=this.shifts.find(x=>x.id===req.myShiftId);
+      if(accept&&shReq&&!this.canFillShift(this.user.id,shReq)){alert('Ce shift demande le rôle « '+this.roleLabel(shReq.roleReq)+' » que tu n\'as pas.');return;}
       req.swapDecisions[this.user.id]=accept?'yes':'no';
       if(accept){
         const s=this.shifts.find(x=>x.id===req.myShiftId);if(s){s.coveredFor=req.employeeId;s.employeeId=this.user.id;this.save();}
@@ -995,7 +1020,8 @@ createApp({
       if(req.myShiftId){
         req.status='pending_swap';
         const date=req.dateFrom||req.date,shifted=new Set((this.shiftsMap[date]||[]).map(s=>s.employeeId));
-        req.proposedTo=this.employees.filter(e=>e.id!==req.employeeId&&!shifted.has(e.id)).map(e=>e.id);
+        const sh0=this.shifts.find(x=>x.id===req.myShiftId);
+        req.proposedTo=this.employees.filter(e=>e.id!==req.employeeId&&!shifted.has(e.id)&&(!sh0||this.canFillShift(e.id,sh0))).map(e=>e.id);
       } else { req.status='pending'; }
       const lbl=req.dateFrom!==req.dateTo?fmtRange(req.dateFrom,req.dateTo):fmtShort(req.dateFrom||req.date);
       this.notify(req.employeeId,`↩️ Ta demande (${lbl}) est de nouveau en attente — décision annulée par l'admin.`);
@@ -1031,6 +1057,7 @@ createApp({
       const sh=this.shifts.find(s=>s.id===req.myShiftId);
       const d=req.dateFrom||req.date;
       if(sh&&this.onLeave(this.user.id,d)){alert('Tu es en absence validée le '+fmtShort(d)+'.');return;}
+      if(sh&&!this.canFillShift(this.user.id,sh)){alert('Ce shift demande le rôle « '+this.roleLabel(sh.roleReq)+' » que tu n\'as pas.');return;}
       if(sh&&this.overlaps(this.user.id,d,sh.start,sh.end,sh.id)){alert('Tu as déjà un shift qui chevauche ce créneau.');return;}
       if(!confirm(`Prendre le shift de ${this.empName(req.employeeId)} le ${fmtShort(d)}${sh?' ('+sh.start+'–'+sh.end+')':''} ?`))return;
       if(sh){sh.coveredFor=req.employeeId;sh.employeeId=this.user.id;}
@@ -1091,16 +1118,16 @@ createApp({
     markRead(){this.notifications.forEach(n=>{if(n.userId===this.user?.id)n.read=true;});this.save();},
 
     // ── Admin ──
-    startEdit(emp){this.editEmp=emp;this.empForm={...emp};if(this.empForm.cpRate==null)this.empForm.cpRate=this.cpPerMonth;if(this.empForm.daysPerWeek==null)this.empForm.daysPerWeek=5;},
+    startEdit(emp){this.editEmp=emp;this.empForm={...emp};if(this.empForm.cpRate==null)this.empForm.cpRate=this.cpPerMonth;if(this.empForm.daysPerWeek==null)this.empForm.daysPerWeek=5;this.empForm.jobRoles=Array.isArray(emp.jobRoles)?[...emp.jobRoles]:[];},
     cancelEdit(){this.editEmp=null;},
     saveEmp(){
       const i=this.users.findIndex(u=>u.id===this.editEmp.id);
-      if(i>=0)this.users[i]={...this.users[i],...this.empForm,hoursPerWeek:+this.empForm.hoursPerWeek,cpBalance:+this.empForm.cpBalance,wage:+(this.empForm.wage||0),cpRate:+(this.empForm.cpRate||0),daysPerWeek:+(this.empForm.daysPerWeek||5)};
+      if(i>=0)this.users[i]={...this.users[i],...this.empForm,hoursPerWeek:+this.empForm.hoursPerWeek,cpBalance:+this.empForm.cpBalance,wage:+(this.empForm.wage||0),cpRate:+(this.empForm.cpRate||0),daysPerWeek:+(this.empForm.daysPerWeek||5),jobRoles:Array.isArray(this.empForm.jobRoles)?[...this.empForm.jobRoles]:[]};
       this.commit();this.editEmp=null;
     },
     // Créer un employé
     slugId(name){let b=(name||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'').slice(0,12)||'emp';let id=b,i=2;while(this.users.some(u=>u.id===id)){id=b+i;i++;}return id;},
-    openNewEmp(){this.editEmp=null;this.newEmp={name:'',email:'',contractType:'CDI',hoursPerWeek:35,daysPerWeek:5,cpBalance:0,wage:12,cpRate:this.cpPerMonth,hasAteliers:false};this.showNewEmp=true;},
+    openNewEmp(){this.editEmp=null;this.newEmp={name:'',email:'',contractType:'CDI',hoursPerWeek:35,daysPerWeek:5,cpBalance:0,wage:12,cpRate:this.cpPerMonth,hasAteliers:false,jobRoles:[]};this.showNewEmp=true;},
     createEmp(){
       const f=this.newEmp;
       if(!f.name||!f.name.trim()){alert('Le nom est requis.');return;}
@@ -1108,6 +1135,7 @@ createApp({
       this.users.push({id,name:f.name.trim(),email:f.email||'',role:'employee',
         hoursPerWeek:+f.hoursPerWeek||0,daysPerWeek:+f.daysPerWeek||5,cpBalance:+f.cpBalance||0,
         wage:+f.wage||0,cpRate:+f.cpRate||0,contractType:f.contractType||'CDI',
+        jobRoles:Array.isArray(f.jobRoles)?[...f.jobRoles]:[],
         hasAteliers:!!f.hasAteliers,cpAccruedThru:monthKey(new Date())});
       this.commit();this.showNewEmp=false;
       alert('Employé créé : '+f.name.trim()+' (identifiant de connexion : '+id+').');
@@ -1558,6 +1586,7 @@ createApp({
             <div class="min-w-0">
               <p class="font-semibold text-gray-800 text-sm">{{empName(req.employeeId)}}</p>
               <p class="text-xs text-gray-600 mt-0.5">{{fmtShort(req.dateFrom||req.date)}}<span v-if="shiftById(req.myShiftId)"> · {{shiftById(req.myShiftId).start}}–{{shiftById(req.myShiftId).end}}</span> · {{typeLabel(req.type)}}</p>
+              <p v-if="shiftById(req.myShiftId)&&shiftById(req.myShiftId).roleReq" class="text-[11px] text-violet-600 font-medium mt-0.5">Rôle requis : {{roleLabel(shiftById(req.myShiftId).roleReq)}}</p>
             </div>
             <span class="ml-auto text-xs px-2.5 py-1 rounded-full font-semibold" :class="statusClr(req.status)">{{statusLabel(req.status)}}</span>
           </div>
@@ -1845,6 +1874,7 @@ createApp({
             <span class="text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full font-medium">{{emp.hoursPerWeek}}h/sem</span>
             <span class="text-xs bg-green-50 text-green-700 px-2.5 py-1 rounded-full font-medium">CP : {{emp.cpBalance}}j</span>
             <span v-if="emp.hasAteliers" class="text-xs bg-orange-50 text-orange-700 px-2.5 py-1 rounded-full font-medium">🎓 Ateliers</span>
+            <span v-for="r in (emp.jobRoles||[])" :key="r" class="text-xs bg-violet-50 text-violet-700 px-2.5 py-1 rounded-full font-medium">{{roleLabel(r)}}</span>
           </div>
         </div>
         <div v-else class="space-y-3">
@@ -1861,6 +1891,16 @@ createApp({
             <div class="col-span-2"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Solde CP (jours)</label><input v-model="empForm.cpBalance" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
             <div class="col-span-2"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Taux horaire (€/h)</label><input v-model="empForm.wage" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
             <div class="col-span-2"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">CP acquis / mois</label><input v-model="empForm.cpRate" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
+          </div>
+          <div>
+            <label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Rôles (aucun = peut tout remplacer)</label>
+            <div class="flex flex-wrap gap-2">
+              <button v-for="r in JOB_ROLES" :key="r.v" type="button" @click="toggleEmpRole(empForm,r.v)"
+                class="text-xs px-3 py-1.5 rounded-full font-semibold border transition-colors"
+                :class="(empForm.jobRoles||[]).includes(r.v)?'bg-green-600 text-white border-green-600':'bg-white text-gray-500 border-gray-200'">
+                {{r.l}}
+              </button>
+            </div>
           </div>
           <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
             <input type="checkbox" v-model="empForm.hasAteliers" class="rounded"/>
@@ -1987,8 +2027,14 @@ createApp({
       <div class="space-y-3">
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Employé</label>
           <select v-model="shiftForm.employeeId" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
-            <option v-for="emp in employees" :key="emp.id" :value="emp.id">{{emp.name}}</option>
+            <option v-for="emp in employees" :key="emp.id" :value="emp.id">{{emp.name}}<span v-if="rolesLabel(emp.id)"> ({{rolesLabel(emp.id)}})</span></option>
           </select></div>
+        <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Rôle requis (pour un remplacement)</label>
+          <select v-model="shiftForm.roleReq" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
+            <option value="">— aucun (ouvert à tous) —</option>
+            <option v-for="r in JOB_ROLES" :key="r.v" :value="r.v">{{r.l}}</option>
+          </select>
+          <p class="text-[11px] text-gray-400 mt-1">Si un rôle est choisi, seuls les collègues ayant ce rôle pourront reprendre ce shift.</p></div>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Date</label>
           <input v-model="shiftForm.date" type="date" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
         <div class="grid grid-cols-2 gap-3">
@@ -2134,6 +2180,16 @@ createApp({
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Taux horaire (€/h)</label><input v-model="newEmp.wage" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Solde CP</label><input v-model="newEmp.cpBalance" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">CP / mois</label><input v-model="newEmp.cpRate" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
+      </div>
+      <div class="mt-3">
+        <label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Rôles (aucun = peut tout remplacer)</label>
+        <div class="flex flex-wrap gap-2">
+          <button v-for="r in JOB_ROLES" :key="r.v" type="button" @click="toggleEmpRole(newEmp,r.v)"
+            class="text-xs px-3 py-1.5 rounded-full font-semibold border transition-colors"
+            :class="(newEmp.jobRoles||[]).includes(r.v)?'bg-green-600 text-white border-green-600':'bg-white text-gray-500 border-gray-200'">
+            {{r.l}}
+          </button>
+        </div>
       </div>
       <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer mt-3">
         <input type="checkbox" v-model="newEmp.hasAteliers" class="rounded"/><span>Accès Ateliers &amp; Formations</span>
