@@ -366,6 +366,11 @@ createApp({
       return all.filter(s=>s.employeeId===this.user?.id);
     },
     pendingSuggCount(){return this.suggestions.filter(s=>s.status==='pending').length;},
+    // Animateurs proposés : ceux qui ont le rôle « animateur » d'abord, puis les autres
+    animatorChoices(){
+      const has=e=>(e.jobRoles||[]).includes('animateur');
+      return [...this.employees].sort((a,b)=>(has(b)?1:0)-(has(a)?1:0)||a.name.localeCompare(b.name));
+    },
     myUpcomingShifts(){
       const t=todayStr();
       return this.shifts.filter(s=>s.employeeId===this.user?.id&&s.date>=t).sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));
@@ -391,8 +396,10 @@ createApp({
         const contract=Math.round((emp.hoursPerWeek||0)*(52/12)*10)/10;   // mensualisation légale 52/12 (référence)
         const extra=this.weeklyExtra(emp.id,y,m);   // heures sup/compl. comptées À LA SEMAINE
         const approved=this.requests.filter(r=>{const d=new Date(r.dateFrom||r.date||'');return r.employeeId===emp.id&&r.status==='approved'&&d.getFullYear()===y&&d.getMonth()===m;});
+        const cpDates=approved.filter(r=>r.type==='CP'&&r.cp!==false).map(r=>r.dateFrom||r.date).filter(Boolean).sort();
+        const malDates=approved.filter(r=>r.type==='maladie').map(r=>r.dateFrom||r.date).filter(Boolean).sort();
         return{emp,worked:Math.round(worked*10)/10,contract:Math.round(contract*10)/10,delta:Math.round((worked-contract)*10)/10,extra,
-          cpUsed:approved.filter(r=>r.type==='CP'&&r.cp!==false).length,ssCount:approved.filter(r=>r.type==='sans_solde').length,malCount:approved.filter(r=>r.type==='maladie').length,
+          cpUsed:cpDates.length,cpDates,ssCount:approved.filter(r=>r.type==='sans_solde').length,malCount:malDates.length,malDates,
           atHours:Math.round(atH*10)/10,corpoHours:Math.round(corpoH*10)/10,cost:Math.round(Math.max(worked,contract)*(+emp.wage||0))};
       });
     },
@@ -1186,7 +1193,7 @@ createApp({
     nextAt(){if(this.atMonth===11){this.atMonth=0;this.atYear++;}else this.atMonth++;},
     openAtForm(){
       this.editAt=null;
-      const who=this.isEmployee?this.user.id:(this.employees[0]?.id||'');
+      const who=this.isEmployee?this.user.id:'';   // admin : choix explicite de l'animateur à chaque fois
       this.atForm={employeeId:who,date:todayStr(),title:'',hours:2,type:'atelier',note:''};
       this.showAtForm=true;
     },
@@ -1194,6 +1201,7 @@ createApp({
     saveAt(){
       if(!this.atForm.title||!this.atForm.date)return;
       if(this.isEmployee)this.atForm.employeeId=this.user.id;   // un employé ne crée que pour lui-même
+      if(!this.atForm.employeeId){alert('Indique qui anime cet atelier.');return;}
       const pend=this.isEmployee;   // saisie employé = à valider par Dan/Julien ; saisie admin = direct
       if(this.editAt){const i=this.ateliers.findIndex(a=>a.id===this.editAt.id);if(i>=0)this.ateliers[i]={...this.ateliers[i],...this.atForm,hours:+this.atForm.hours,pending:pend};}
       else this.ateliers.push({id:uid(),...this.atForm,hours:+this.atForm.hours,pending:pend});
@@ -1248,14 +1256,31 @@ createApp({
     // Heures sup/complémentaires comptées À LA SEMAINE (lun→dim), pour les semaines dont le lundi tombe dans le mois.
     // = somme des dépassements hebdo au-delà du contrat (0 si chaque semaine respecte le contrat).
     weeklyExtra(empId,y,m){
-      const wc=+(this.users.find(u=>u.id===empId)?.hoursPerWeek)||0;
-      const weeks={};
-      const add=(date,h)=>{const d=new Date(date+'T00:00:00');const back=(d.getDay()+6)%7;d.setDate(d.getDate()-back);weeks[ymd(d)]=(weeks[ymd(d)]||0)+h;};
+      const u=this.users.find(u=>u.id===empId);
+      const wc=+(u?.hoursPerWeek)||0;
+      const dpw=+(u?.daysPerWeek)||5;
+      const dayH=dpw>0?wc/dpw:0;               // durée d'une journée standard
+      const wkKey=date=>{const d=new Date(date+'T00:00:00');const back=(d.getDay()+6)%7;d.setDate(d.getDate()-back);return ymd(d);};
+      const weeks={},absWk={};
+      const add=(date,h)=>{const k=wkKey(date);weeks[k]=(weeks[k]||0)+h;};
       this.shifts.forEach(s=>{if(s.employeeId===empId)add(s.date,diffH(s.start,s.end));});
       this.corpo.forEach(c=>{if(c.employeeId===empId)add(c.date,diffH(c.start,c.end));});
       this.ateliers.forEach(a=>{if(a.employeeId===empId&&a.pending!==true)add(a.date,+a.hours||0);});
+      // Option B : chaque absence validée (CP / maladie) réduit le seuil de SA semaine,
+      // pour qu'un jour posé ne masque jamais les heures supp faites les autres jours.
+      this.requests.forEach(r=>{
+        if(r.employeeId!==empId||r.status!=='approved')return;
+        if(r.type!=='CP'&&r.type!=='maladie')return;
+        const k=wkKey(r.dateFrom||r.date||'');if(k)absWk[k]=(absWk[k]||0)+1;
+      });
       let extra=0;
-      Object.keys(weeks).forEach(k=>{const mon=new Date(k+'T00:00:00');if(mon.getFullYear()===y&&mon.getMonth()===m)extra+=Math.max(0,weeks[k]-wc);});
+      Object.keys(weeks).forEach(k=>{
+        const mon=new Date(k+'T00:00:00');
+        if(mon.getFullYear()===y&&mon.getMonth()===m){
+          const thr=Math.max(0, wc-(absWk[k]||0)*dayH);   // seuil réduit par les absences
+          extra+=Math.max(0,weeks[k]-thr);
+        }
+      });
       return Math.round(extra*10)/10;
     },
     empColor, fmtLong, fmtShort, fmtRange,
@@ -1268,6 +1293,11 @@ createApp({
     atTypeClr(t){return{atelier:'bg-orange-50 text-orange-700',formation:'bg-blue-50 text-blue-700',autre:'bg-gray-100 text-gray-600'}[t]||'bg-gray-100 text-gray-600';},
     copyWA(){navigator.clipboard.writeText(this.waMsg).then(()=>alert('Copié !'));},
     fmt2(n){return(+n).toFixed(2);},
+    // Liste compacte de jours : « 5, 12 et 18 juin » (regroupe le mois si commun)
+    dayList(dates){
+      if(!dates||!dates.length)return'';
+      return dates.map(d=>{const x=new Date(d+'T00:00:00');return x.getDate()+' '+MONTHS[x.getMonth()].toLowerCase();}).join(', ');
+    },
   },
 
   template: `
@@ -1652,12 +1682,24 @@ createApp({
               <span class="text-xs text-gray-400">{{row.emp.hoursPerWeek}}h/sem</span>
             </div>
           </div>
-          <div class="grid grid-cols-3 gap-2 text-center">
+          <!-- Références (heures travaillées vs contrat) -->
+          <div class="grid grid-cols-2 gap-2 text-center">
             <div class="bg-gray-50 rounded-xl py-2.5"><p class="text-[10px] text-gray-400 font-medium">Contrat</p><p class="font-bold text-gray-700 text-sm mt-0.5">{{row.contract}}h</p></div>
             <div class="bg-gray-50 rounded-xl py-2.5"><p class="text-[10px] text-gray-400 font-medium">Travaillé</p><p class="font-bold text-gray-700 text-sm mt-0.5">{{row.worked}}h</p></div>
-            <div class="rounded-xl py-2.5" :class="row.extra>0?'bg-amber-50':'bg-gray-50'"><p class="text-[10px] text-gray-400 font-medium">Sup/compl.</p><p class="font-bold text-sm mt-0.5" :class="row.extra>0?'text-amber-700':'text-gray-500'">{{row.extra}}h</p></div>
           </div>
-          <p class="text-[10px] text-gray-400 text-center">« Sup/compl. » = heures au-delà du contrat comptées à la semaine (0 si chaque semaine respecte le contrat).</p>
+          <!-- Deux compteurs INDÉPENDANTS : heures supp d'un côté, congés payés de l'autre -->
+          <div class="grid grid-cols-2 gap-2">
+            <div class="rounded-xl p-3" :class="row.extra>0?'bg-amber-50 border border-amber-200':'bg-gray-50 border border-gray-100'">
+              <p class="text-[10px] font-semibold uppercase tracking-wide" :class="row.extra>0?'text-amber-500':'text-gray-400'">Heures supp du mois</p>
+              <p class="font-bold text-lg mt-0.5" :class="row.extra>0?'text-amber-700':'text-gray-500'">{{row.extra}}h</p>
+            </div>
+            <div class="rounded-xl p-3" :class="row.cpUsed>0?'bg-blue-50 border border-blue-200':'bg-gray-50 border border-gray-100'">
+              <p class="text-[10px] font-semibold uppercase tracking-wide" :class="row.cpUsed>0?'text-blue-500':'text-gray-400'">CP posés du mois</p>
+              <p class="font-bold text-lg mt-0.5" :class="row.cpUsed>0?'text-blue-700':'text-gray-500'">{{row.cpUsed}}j</p>
+              <p v-if="row.cpDates.length" class="text-[11px] text-blue-600 mt-1 leading-snug">{{dayList(row.cpDates)}}</p>
+            </div>
+          </div>
+          <p class="text-[10px] text-gray-400">Compteurs indépendants : un jour de CP/maladie réduit le seuil hebdo de sa semaine, donc il ne masque jamais les heures supp faites les autres jours — les deux ne se compensent pas.</p>
           <!-- Santiago's ateliers hours -->
           <div v-if="row.atHours>0" class="bg-orange-50 rounded-xl px-3 py-2 flex items-center gap-2">
             <span class="text-orange-600 text-xs">🎓</span>
@@ -1669,8 +1711,7 @@ createApp({
           </div>
           <div class="flex flex-wrap gap-1.5 pt-1">
             <span class="text-xs px-2.5 py-1 rounded-full font-medium" :class="row.emp.cpBalance<0?'bg-red-50 text-red-600':'bg-green-50 text-green-700'">CP restants : {{row.emp.cpBalance}}j<span v-if="row.emp.cpBalance<0"> (en avance)</span></span>
-            <span class="text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full font-medium">CP posés : {{row.cpUsed}}j</span>
-            <span class="text-xs bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full font-medium">Maladie : {{row.malCount}}j</span>
+            <span class="text-xs bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full font-medium" :title="row.malDates.length?dayList(row.malDates):''">Maladie : {{row.malCount}}j</span>
             <span v-if="canAdmin" class="text-xs bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full font-medium">Coût : {{row.cost}} €</span>
           </div>
         </div>
@@ -1798,10 +1839,13 @@ createApp({
             <div class="flex items-center gap-2 mb-1 flex-wrap">
               <span class="text-xs px-2 py-0.5 rounded-full font-semibold" :class="atTypeClr(a.type)">{{atTypeLabel(a.type)}}</span>
               <span v-if="a.pending" class="text-xs px-2 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-800">⏳ À valider</span>
-              <span v-if="canAdmin" class="text-xs text-gray-400">{{empName(a.employeeId)}}</span>
             </div>
             <p class="font-semibold text-gray-800 text-sm">{{a.title}}</p>
             <p class="text-xs text-gray-500 mt-0.5">{{fmtShort(a.date)}} · {{a.hours}}h</p>
+            <p class="text-xs mt-0.5 flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full flex-shrink-0" :class="empColor(a.employeeId).dot"></span>
+              <span class="text-gray-600">Animé par <b class="text-gray-800">{{empName(a.employeeId)}}</b></span>
+            </p>
             <p v-if="a.note" class="text-xs text-gray-400 italic mt-0.5">"{{a.note}}"</p>
           </div>
           <div v-if="canAdmin||a.employeeId===user.id" class="flex gap-1 flex-shrink-0">
@@ -2146,9 +2190,11 @@ createApp({
         <div class="grid grid-cols-2 gap-3">
           <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Durée (heures)</label>
             <input v-model="atForm.hours" type="number" min="0.5" step="0.5" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"/></div>
-          <div v-if="canAdmin"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Intervenant</label>
-            <select v-model="atForm.employeeId" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
-              <option v-for="emp in employees" :key="emp.id" :value="emp.id">{{emp.name}}</option>
+          <div v-if="canAdmin"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Qui anime ?</label>
+            <select v-model="atForm.employeeId" class="w-full border bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+              :class="atForm.employeeId?'border-gray-200':'border-orange-300'">
+              <option value="">— choisir l'animateur —</option>
+              <option v-for="emp in animatorChoices" :key="emp.id" :value="emp.id">{{emp.name}}<span v-if="(emp.jobRoles||[]).includes('animateur')"> ⭐</span></option>
             </select></div>
         </div>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Note (optionnel)</label>
