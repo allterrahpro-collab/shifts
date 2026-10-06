@@ -61,6 +61,8 @@ const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Aoû
 const DAYS_SHORT = ['L','M','M','J','V','S','D'];
 // Métiers (indépendants des droits patron/manager/employé). Un employé peut en avoir 0, 1 ou plusieurs.
 const JOB_ROLES = [{v:'barista',l:'Barista'},{v:'animateur',l:'Animateur'},{v:'commis',l:'Commis'}];
+// Pôles (catégories de regroupement dans les rapports) — cumulables, indépendants des rôles de remplacement
+const POLES = [{v:'barista',l:'Barista'},{v:'cuisine',l:'Cuisine'},{v:'salle',l:'Salle'},{v:'atelier',l:'Atelier'}];
 
 const fmtLong  = d => d ? new Date(d+'T00:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}) : '';
 const fmtShort = d => d ? new Date(d+'T00:00:00').toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'}) : '';
@@ -108,7 +110,24 @@ const COLORS = {
   dan:     {bg:'bg-slate-100', text:'text-slate-800', dot:'bg-slate-500' },
   julien:  {bg:'bg-green-100', text:'text-green-800', dot:'bg-green-500' },
 };
-const empColor = id => COLORS[id]||{bg:'bg-gray-100',text:'text-gray-700',dot:'bg-gray-400'};
+// Palette de couleurs choisissables par employé (classes Tailwind)
+const PALETTE = [
+  {v:'blue',l:'Bleu',bg:'bg-blue-100',text:'text-blue-800',dot:'bg-blue-500'},
+  {v:'purple',l:'Violet',bg:'bg-purple-100',text:'text-purple-800',dot:'bg-purple-500'},
+  {v:'pink',l:'Rose',bg:'bg-pink-100',text:'text-pink-800',dot:'bg-pink-500'},
+  {v:'red',l:'Rouge',bg:'bg-red-100',text:'text-red-800',dot:'bg-red-500'},
+  {v:'orange',l:'Orange',bg:'bg-orange-100',text:'text-orange-800',dot:'bg-orange-500'},
+  {v:'amber',l:'Ambre',bg:'bg-amber-100',text:'text-amber-800',dot:'bg-amber-500'},
+  {v:'yellow',l:'Jaune',bg:'bg-yellow-100',text:'text-yellow-800',dot:'bg-yellow-500'},
+  {v:'lime',l:'Vert clair',bg:'bg-lime-100',text:'text-lime-800',dot:'bg-lime-500'},
+  {v:'green',l:'Vert',bg:'bg-green-100',text:'text-green-800',dot:'bg-green-500'},
+  {v:'teal',l:'Turquoise',bg:'bg-teal-100',text:'text-teal-800',dot:'bg-teal-500'},
+  {v:'cyan',l:'Cyan',bg:'bg-cyan-100',text:'text-cyan-800',dot:'bg-cyan-500'},
+  {v:'indigo',l:'Indigo',bg:'bg-indigo-100',text:'text-indigo-800',dot:'bg-indigo-500'},
+  {v:'slate',l:'Gris',bg:'bg-slate-100',text:'text-slate-800',dot:'bg-slate-500'},
+];
+const colorByKey = k => PALETTE.find(c=>c.v===k);
+const empColorById = id => COLORS[id]||{bg:'bg-gray-100',text:'text-gray-700',dot:'bg-gray-400'};
 
 const SEED_USERS = [
   {id:'julien',  name:'Julien',  role:'patron',  email:'julien@cafe.fr',  hoursPerWeek:0, cpBalance:0,    wage:0,     contractType:'CDI',       hasAteliers:false},
@@ -227,6 +246,7 @@ createApp({
       // reports
       repYear:new Date().getFullYear(), repMonth:new Date().getMonth(),
       repTab:'heures',   // 'heures' | 'pourboires'
+      repGroup:'none',   // 'none' | 'contrat' | 'pole' — regroupement du rapport heures
       tipsInput:'',
       // ateliers
       showAtForm:false, editAt:null,
@@ -236,7 +256,7 @@ createApp({
       history:[], histIdx:-1, histLock:false,
       // sync cloud
       online:false,
-      MONTHS, DAYS_SHORT, JOB_ROLES,
+      MONTHS, DAYS_SHORT, JOB_ROLES, POLES, PALETTE,
     };
   },
 
@@ -250,7 +270,8 @@ createApp({
     firstLogin(){if(this.demoMode)return false;const id=(this.loginForm.username||'').toLowerCase().trim();const u=this.users.find(x=>x.id===id);return !!u&&!u.password;},
     canUndo()   {return this.histIdx>0;},
     canRedo()   {return this.histIdx>=0&&this.histIdx<this.history.length-1;},
-    employees() {return this.users.filter(u=>u.role==='employee');},
+    employees() {return this.users.filter(u=>u.role==='employee'&&u.active!==false);},   // actifs uniquement (les désactivés disparaissent partout)
+    allEmployees() {return this.users.filter(u=>u.role==='employee');},                  // tous, y compris désactivés (pour l'admin)
     showAteliers(){ return !!this.user; },   // chacun peut consulter/ajouter ses ateliers
     unread()    {return this.notifications.filter(n=>n.userId===this.user?.id&&!n.read).length;},
     myNotifs()  {return[...this.notifications].filter(n=>n.userId===this.user?.id).sort((a,b)=>b.at.localeCompare(a.at)).slice(0,30);},
@@ -403,6 +424,21 @@ createApp({
           atHours:Math.round(atH*10)/10,corpoHours:Math.round(corpoH*10)/10,cost:Math.round(Math.max(worked,contract)*(+emp.wage||0))};
       });
     },
+    // Regroupement du rapport heures (aucun / contrat / pôle). En multi-pôle, une personne apparaît dans chaque pôle.
+    reportGroups(){
+      const data=this.reportData;
+      if(this.repGroup==='contrat'){
+        return [{label:'CDI',rows:data.filter(r=>r.emp.contractType==='CDI')},
+                {label:'Autres contrats',rows:data.filter(r=>r.emp.contractType!=='CDI')}].filter(g=>g.rows.length);
+      }
+      if(this.repGroup==='pole'){
+        const out=POLES.map(p=>({label:p.l,rows:data.filter(r=>(r.emp.poles||[]).includes(p.v))})).filter(g=>g.rows.length);
+        const none=data.filter(r=>!((r.emp.poles||[]).length));
+        if(none.length)out.push({label:'Sans pôle',rows:none});
+        return out;
+      }
+      return [{label:'',rows:data}];
+    },
 
     // ─── Reports: tips ───
     tipsData(){
@@ -410,7 +446,7 @@ createApp({
       const entry=this.tips.find(t=>t.year===y&&t.month===m);
       const total=entry?+entry.amount:0;
 
-      const empData=this.employees.map(emp=>{
+      const empData=this.employees.filter(emp=>emp.tipEligible!==false).map(emp=>{   // seuls les éligibles aux pourboires
         const ws=this.shifts.filter(s=>{const d=new Date(s.date);return s.employeeId===emp.id&&d.getFullYear()===y&&d.getMonth()===m;});
         const wkndH=Math.round(ws.filter(s=>isWeekend(s.date)).reduce((a,x)=>a+diffH(x.start,x.end),0)*10)/10;
         const wkdyH=Math.round(ws.filter(s=>!isWeekend(s.date)).reduce((a,x)=>a+diffH(x.start,x.end),0)*10)/10;
@@ -1125,16 +1161,16 @@ createApp({
     markRead(){this.notifications.forEach(n=>{if(n.userId===this.user?.id)n.read=true;});this.save();},
 
     // ── Admin ──
-    startEdit(emp){this.editEmp=emp;this.empForm={...emp};if(this.empForm.cpRate==null)this.empForm.cpRate=this.cpPerMonth;if(this.empForm.daysPerWeek==null)this.empForm.daysPerWeek=5;this.empForm.jobRoles=Array.isArray(emp.jobRoles)?[...emp.jobRoles]:[];},
+    startEdit(emp){this.editEmp=emp;this.empForm={...emp};if(this.empForm.cpRate==null)this.empForm.cpRate=this.cpPerMonth;if(this.empForm.daysPerWeek==null)this.empForm.daysPerWeek=5;this.empForm.jobRoles=Array.isArray(emp.jobRoles)?[...emp.jobRoles]:[];this.empForm.poles=Array.isArray(emp.poles)?[...emp.poles]:[];if(this.empForm.tipEligible==null)this.empForm.tipEligible=true;this.empForm.color=emp.color||'';},
     cancelEdit(){this.editEmp=null;},
     saveEmp(){
       const i=this.users.findIndex(u=>u.id===this.editEmp.id);
-      if(i>=0)this.users[i]={...this.users[i],...this.empForm,hoursPerWeek:+this.empForm.hoursPerWeek,cpBalance:+this.empForm.cpBalance,wage:+(this.empForm.wage||0),cpRate:+(this.empForm.cpRate||0),daysPerWeek:+(this.empForm.daysPerWeek||5),jobRoles:Array.isArray(this.empForm.jobRoles)?[...this.empForm.jobRoles]:[]};
+      if(i>=0)this.users[i]={...this.users[i],...this.empForm,hoursPerWeek:+this.empForm.hoursPerWeek,cpBalance:+this.empForm.cpBalance,wage:+(this.empForm.wage||0),cpRate:+(this.empForm.cpRate||0),daysPerWeek:+(this.empForm.daysPerWeek||5),jobRoles:Array.isArray(this.empForm.jobRoles)?[...this.empForm.jobRoles]:[],poles:Array.isArray(this.empForm.poles)?[...this.empForm.poles]:[],tipEligible:this.empForm.tipEligible!==false,color:this.empForm.color||''};
       this.commit();this.editEmp=null;
     },
     // Créer un employé
     slugId(name){let b=(name||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'').slice(0,12)||'emp';let id=b,i=2;while(this.users.some(u=>u.id===id)){id=b+i;i++;}return id;},
-    openNewEmp(){this.editEmp=null;this.newEmp={name:'',email:'',contractType:'CDI',hoursPerWeek:35,daysPerWeek:5,cpBalance:0,wage:12,cpRate:this.cpPerMonth,hasAteliers:false,jobRoles:[]};this.showNewEmp=true;},
+    openNewEmp(){this.editEmp=null;this.newEmp={name:'',email:'',contractType:'CDI',hoursPerWeek:35,daysPerWeek:5,cpBalance:0,wage:12,cpRate:this.cpPerMonth,hasAteliers:false,jobRoles:[],poles:[],tipEligible:true,color:''};this.showNewEmp=true;},
     createEmp(){
       const f=this.newEmp;
       if(!f.name||!f.name.trim()){alert('Le nom est requis.');return;}
@@ -1143,9 +1179,18 @@ createApp({
         hoursPerWeek:+f.hoursPerWeek||0,daysPerWeek:+f.daysPerWeek||5,cpBalance:+f.cpBalance||0,
         wage:+f.wage||0,cpRate:+f.cpRate||0,contractType:f.contractType||'CDI',
         jobRoles:Array.isArray(f.jobRoles)?[...f.jobRoles]:[],
+        poles:Array.isArray(f.poles)?[...f.poles]:[],tipEligible:f.tipEligible!==false,color:f.color||'',active:true,
         hasAteliers:!!f.hasAteliers,cpAccruedThru:monthKey(new Date())});
       this.commit();this.showNewEmp=false;
       alert('Employé créé : '+f.name.trim()+' (identifiant de connexion : '+id+').');
+    },
+    toggleActive(emp){
+      const i=this.users.findIndex(u=>u.id===emp.id);if(i<0)return;
+      const willDisable=this.users[i].active!==false;
+      if(willDisable&&!confirm('Désactiver '+emp.name+' ?\nIl/elle disparaît du planning, des remplacements, des rapports et des pourboires, mais son profil et son historique sont conservés. Réactivable à tout moment.'))return;
+      this.users[i]={...this.users[i],active:!willDisable};
+      if(this.editEmp&&this.editEmp.id===emp.id)this.editEmp=null;
+      this.commit();
     },
     deleteEmp(emp){
       if(!confirm('Supprimer '+emp.name+' ?\nSes shifts et heures corpo seront aussi retirés. (annulable par Ctrl+Z)'))return;
@@ -1283,7 +1328,12 @@ createApp({
       });
       return Math.round(extra*10)/10;
     },
-    empColor, fmtLong, fmtShort, fmtRange,
+    empColor(id){const u=(this.users||[]).find(x=>x.id===id);if(u&&u.color){const p=colorByKey(u.color);if(p)return p;}return empColorById(id);},
+    polesOf(empId){const u=this.users.find(x=>x.id===empId);return (u&&Array.isArray(u.poles))?u.poles:[];},
+    poleLabel(v){const p=POLES.find(x=>x.v===v);return p?p.l:v;},
+    polesLabel(empId){const r=this.polesOf(empId);return r.length?r.map(v=>this.poleLabel(v)).join(', '):'';},
+    togglePole(form,v){if(!Array.isArray(form.poles))form.poles=[];const i=form.poles.indexOf(v);if(i>=0)form.poles.splice(i,1);else form.poles.push(v);},
+    fmtLong, fmtShort, fmtRange,
     reqDateLabel(req){const f=req.dateFrom||req.date||'',t=req.dateTo||f;return fmtRange(f,t);},
     typeLabel(t){return{CP:'Congé Payé',sans_solde:'Sans solde',maladie:'Arrêt maladie'}[t]||t;},
     statusLabel(s){return{pending_swap:'Swap en attente',pending:'En attente',approved:'Accordé',refused:'Refusé',needs_manager:'Décision manager'}[s]||s;},
@@ -1672,8 +1722,16 @@ createApp({
       </div>
 
       <!-- HEURES tab -->
-      <div v-if="repTab==='heures'">
-        <div v-for="row in reportData" :key="row.emp.id" class="bg-white rounded-2xl border border-gray-200 p-4 space-y-3">
+      <div v-if="repTab==='heures'" class="space-y-3">
+        <!-- Regroupement -->
+        <div class="flex items-center gap-1.5 bg-gray-100 rounded-xl p-1 text-center">
+          <button @click="repGroup='none'" class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors" :class="repGroup==='none'?'bg-white text-gray-800 shadow-sm':'text-gray-500'">Tous</button>
+          <button @click="repGroup='contrat'" class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors" :class="repGroup==='contrat'?'bg-white text-gray-800 shadow-sm':'text-gray-500'">Par contrat</button>
+          <button @click="repGroup='pole'" class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors" :class="repGroup==='pole'?'bg-white text-gray-800 shadow-sm':'text-gray-500'">Par pôle</button>
+        </div>
+        <template v-for="grp in reportGroups" :key="grp.label||'all'">
+          <p v-if="grp.label" class="text-xs font-bold text-gray-500 uppercase tracking-wide pt-2 pl-1">{{grp.label}} <span class="text-gray-300 font-medium">· {{grp.rows.length}}</span></p>
+          <div v-for="row in grp.rows" :key="(grp.label||'all')+row.emp.id" class="bg-white rounded-2xl border border-gray-200 p-4 space-y-3">
           <div class="flex items-center gap-2">
             <span class="w-3 h-3 rounded-full flex-shrink-0" :class="empColor(row.emp.id).dot"></span>
             <span class="font-semibold text-gray-800">{{row.emp.name}}</span>
@@ -1715,6 +1773,7 @@ createApp({
             <span v-if="canAdmin" class="text-xs bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full font-medium">Coût : {{row.cost}} €</span>
           </div>
         </div>
+        </template>
         <div v-if="canAdmin&&reportData.length" class="bg-slate-800 rounded-2xl px-4 py-3 flex justify-between items-center">
           <span class="text-sm font-semibold text-white">Coût masse salariale du mois</span>
           <span class="font-bold text-white text-lg">{{reportData.reduce((s,r)=>s+r.cost,0)}} €</span>
@@ -1900,7 +1959,7 @@ createApp({
         <h2 class="font-semibold text-gray-800">Gestion des employés</h2>
         <button v-if="canAdmin" @click="openNewEmp" class="bg-green-600 text-white text-xs px-4 py-2 rounded-xl font-semibold shadow-sm hover:bg-green-700">+ Nouvel employé</button>
       </div>
-      <div v-for="emp in users.filter(u=>u.role==='employee')" :key="emp.id" class="bg-white rounded-2xl border border-gray-200 p-4">
+      <div v-for="emp in users.filter(u=>u.role==='employee')" :key="emp.id" class="bg-white rounded-2xl border border-gray-200 p-4" :class="emp.active===false?'opacity-60':''">
         <div v-if="!editEmp||editEmp.id!==emp.id">
           <div class="flex items-start justify-between">
             <div class="flex items-center gap-2.5">
@@ -1909,7 +1968,8 @@ createApp({
             </div>
             <div v-if="canAdmin" class="flex items-center gap-1 flex-shrink-0">
               <button @click="startEdit(emp)" class="text-xs text-green-600 font-semibold px-2 py-1 rounded-lg hover:bg-green-50">Modifier</button>
-              <button @click="deleteEmp(emp)" class="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-100 text-sm" title="Supprimer">🗑</button>
+              <button @click="toggleActive(emp)" class="text-xs font-semibold px-2 py-1 rounded-lg" :class="emp.active===false?'text-green-600 hover:bg-green-50':'text-amber-600 hover:bg-amber-50'" :title="emp.active===false?'Réactiver':'Désactiver'">{{emp.active===false?'Réactiver':'Désactiver'}}</button>
+              <button @click="deleteEmp(emp)" class="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-100 text-sm" title="Supprimer définitivement">🗑</button>
             </div>
           </div>
           <div class="flex flex-wrap gap-1.5 mt-3">
@@ -1919,6 +1979,9 @@ createApp({
             <span class="text-xs bg-green-50 text-green-700 px-2.5 py-1 rounded-full font-medium">CP : {{emp.cpBalance}}j</span>
             <span v-if="emp.hasAteliers" class="text-xs bg-orange-50 text-orange-700 px-2.5 py-1 rounded-full font-medium">🎓 Ateliers</span>
             <span v-for="r in (emp.jobRoles||[])" :key="r" class="text-xs bg-violet-50 text-violet-700 px-2.5 py-1 rounded-full font-medium">{{roleLabel(r)}}</span>
+            <span v-for="p in (emp.poles||[])" :key="'p'+p" class="text-xs bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full font-medium">📍 {{poleLabel(p)}}</span>
+            <span v-if="emp.tipEligible===false" class="text-xs bg-gray-100 text-gray-500 px-2.5 py-1 rounded-full font-medium">Sans pourboires</span>
+            <span v-if="emp.active===false" class="text-xs bg-red-100 text-red-700 px-2.5 py-1 rounded-full font-semibold">Désactivé</span>
           </div>
         </div>
         <div v-else class="space-y-3">
@@ -1946,9 +2009,30 @@ createApp({
               </button>
             </div>
           </div>
+          <div>
+            <label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Pôles (regroupement des rapports — cumulables)</label>
+            <div class="flex flex-wrap gap-2">
+              <button v-for="p in POLES" :key="p.v" type="button" @click="togglePole(empForm,p.v)"
+                class="text-xs px-3 py-1.5 rounded-full font-semibold border transition-colors"
+                :class="(empForm.poles||[]).includes(p.v)?'bg-indigo-600 text-white border-indigo-600':'bg-white text-gray-500 border-gray-200'">
+                {{p.l}}
+              </button>
+            </div>
+          </div>
+          <div>
+            <label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Couleur</label>
+            <div class="flex flex-wrap gap-1.5">
+              <button type="button" @click="empForm.color=''" title="Auto" class="w-7 h-7 rounded-full bg-gray-200 border border-gray-300 text-[9px] text-gray-500 flex items-center justify-center" :class="!empForm.color?'ring-2 ring-offset-1 ring-gray-800':''">auto</button>
+              <button v-for="c in PALETTE" :key="c.v" type="button" @click="empForm.color=c.v" :title="c.l" class="w-7 h-7 rounded-full border border-white shadow" :class="[c.dot, empForm.color===c.v?'ring-2 ring-offset-1 ring-gray-800':'']"></button>
+            </div>
+          </div>
           <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
             <input type="checkbox" v-model="empForm.hasAteliers" class="rounded"/>
             <span>Accès Ateliers & Formations</span>
+          </label>
+          <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+            <input type="checkbox" v-model="empForm.tipEligible" class="rounded"/>
+            <span>Éligible aux pourboires</span>
           </label>
           <div class="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
             <span class="text-xs text-gray-500 flex-1">Mot de passe : <b>{{empForm.password?'défini':'non défini'}}</b></span>
@@ -2237,8 +2321,28 @@ createApp({
           </button>
         </div>
       </div>
+      <div class="mt-3">
+        <label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Pôles (regroupement rapports — cumulables)</label>
+        <div class="flex flex-wrap gap-2">
+          <button v-for="p in POLES" :key="p.v" type="button" @click="togglePole(newEmp,p.v)"
+            class="text-xs px-3 py-1.5 rounded-full font-semibold border transition-colors"
+            :class="(newEmp.poles||[]).includes(p.v)?'bg-indigo-600 text-white border-indigo-600':'bg-white text-gray-500 border-gray-200'">
+            {{p.l}}
+          </button>
+        </div>
+      </div>
+      <div class="mt-3">
+        <label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Couleur</label>
+        <div class="flex flex-wrap gap-1.5">
+          <button type="button" @click="newEmp.color=''" title="Auto" class="w-7 h-7 rounded-full bg-gray-200 border border-gray-300 text-[9px] text-gray-500 flex items-center justify-center" :class="!newEmp.color?'ring-2 ring-offset-1 ring-gray-800':''">auto</button>
+          <button v-for="c in PALETTE" :key="c.v" type="button" @click="newEmp.color=c.v" :title="c.l" class="w-7 h-7 rounded-full border border-white shadow" :class="[c.dot, newEmp.color===c.v?'ring-2 ring-offset-1 ring-gray-800':'']"></button>
+        </div>
+      </div>
       <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer mt-3">
         <input type="checkbox" v-model="newEmp.hasAteliers" class="rounded"/><span>Accès Ateliers &amp; Formations</span>
+      </label>
+      <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer mt-2">
+        <input type="checkbox" v-model="newEmp.tipEligible" class="rounded"/><span>Éligible aux pourboires</span>
       </label>
       <div class="flex gap-3 mt-5">
         <button @click="showNewEmp=false" class="flex-1 bg-gray-100 text-gray-600 py-3 rounded-2xl text-sm font-semibold">Annuler</button>
