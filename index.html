@@ -338,6 +338,15 @@ createApp({
       });
       return Math.round(c);
     },
+    // Compteur par employé qui travaille cette semaine : heures faites vs contrat hebdo
+    weekSummary(){
+      return this.employees.map(emp=>{
+        const worked=this.weekDays.reduce((s,d)=>s+(this.shiftsMap[d.ds]||[]).filter(x=>x.employeeId===emp.id).reduce((a,x)=>a+diffH(x.start,x.end),0),0);
+        const contract=+emp.hoursPerWeek||0;
+        const w=Math.round(worked*10)/10;
+        return {emp,worked:w,contract,delta:Math.round((w-contract)*10)/10};
+      }).filter(r=>r.worked>0);
+    },
     // Alertes repos légal pour la semaine affichée
     legalWarnings(){
       const out=[],days=this.weekDays;
@@ -1521,6 +1530,18 @@ createApp({
           <button v-if="canAdmin" @click="exportICS(true)" class="bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-semibold">Équipe .ics</button>
           <span v-if="canAdmin" class="text-gray-300">|</span>
           <span v-if="canAdmin" class="text-[11px] text-gray-500 font-medium">Coût sem. : <b class="text-gray-800">{{weekCost}} €</b></span>
+        </div>
+        <!-- Compteurs hebdo par employé : heures vs contrat -->
+        <div v-if="weekSummary.length" class="bg-white border-b border-gray-100 px-3 py-2 flex gap-2 overflow-x-auto whitespace-nowrap">
+          <span class="text-[11px] text-gray-400 font-medium self-center flex-shrink-0">Heures / contrat :</span>
+          <div v-for="r in weekSummary" :key="r.emp.id" class="flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] flex-shrink-0"
+            :class="r.delta>0?'bg-amber-50 border-amber-200':r.delta<0?'bg-gray-50 border-gray-200':'bg-green-50 border-green-200'"
+            :title="r.delta>0?('+'+r.delta+'h au-delà du contrat'):r.delta<0?(r.delta+'h sous le contrat'):'pile au contrat'">
+            <span class="w-2 h-2 rounded-full flex-shrink-0" :class="empColor(r.emp.id).dot"></span>
+            <span class="font-semibold text-gray-700">{{r.emp.name}}</span>
+            <span class="text-gray-500">{{r.worked}}<span v-if="r.contract">/{{r.contract}}</span>h</span>
+            <span v-if="r.contract" class="font-semibold" :class="r.delta>0?'text-amber-700':r.delta<0?'text-gray-400':'text-green-700'">{{r.delta>0?'+':''}}{{r.delta}}</span>
+          </div>
         </div>
         <!-- Alertes repos légal -->
         <div v-if="canEdit&&legalWarnings.length" class="bg-red-50 border-b border-red-100 px-3 py-1.5 text-[11px] text-red-700">
