@@ -380,10 +380,10 @@ createApp({
     openShifts(){
       if(!this.user)return[];
       return this.requests.filter(r=>{
-        if(!['pending_swap','needs_manager'].includes(r.status))return false;
+        if(!['pending','pending_swap','needs_manager'].includes(r.status))return false;   // inclut 'pending' (congé posé avant le shift)
         if(r.employeeId===this.user.id)return false;
-        const sh=this.shifts.find(s=>s.id===r.myShiftId);
-        if(!sh||sh.employeeId!==r.employeeId)return false;          // shift déjà repris / disparu
+        const sh=this.reqShift(r);                                  // shift du jour résolu dynamiquement (même si myShiftId absent)
+        if(!sh||sh.employeeId!==r.employeeId)return false;          // il faut un shift ce jour-là, pas déjà repris
         const date=r.dateFrom||r.date;
         const clash=(this.shiftsMap[date]||[]).some(s=>s.employeeId===this.user.id&&parseTime(s.start)<parseTime(sh.end)&&parseTime(s.end)>parseTime(sh.start));
         if(!this.canFillShift(this.user.id,sh))return false;        // rôle requis non détenu
@@ -1104,9 +1104,16 @@ createApp({
     },
 
     // ── Se positionner sur un shift à remplacer ──
+    // Shift du jour concerné par une demande, résolu même si myShiftId n'a pas été enregistré (congé posé avant le shift)
+    reqShift(r){
+      if(r.myShiftId){const s=this.shifts.find(x=>x.id===r.myShiftId);if(s)return s;}
+      const date=r.dateFrom||r.date;
+      return this.shifts.find(s=>s.employeeId===r.employeeId&&s.date===date)||null;
+    },
     claimShift(rid){
       const req=this.requests.find(r=>r.id===rid);if(!req)return;
-      const sh=this.shifts.find(s=>s.id===req.myShiftId);
+      const sh=this.reqShift(req);
+      if(sh&&!req.myShiftId)req.myShiftId=sh.id;   // mémorise le shift résolu pour la suite (annulation, etc.)
       const d=req.dateFrom||req.date;
       if(sh&&this.onLeave(this.user.id,d)){alert('Tu es en absence validée le '+fmtShort(d)+'.');return;}
       if(sh&&!this.canFillShift(this.user.id,sh)){alert('Ce shift demande le rôle « '+this.roleLabel(sh.roleReq)+' » que tu n\'as pas.');return;}
@@ -1686,8 +1693,8 @@ createApp({
             <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" :class="empColor(req.employeeId).dot"></span>
             <div class="min-w-0">
               <p class="font-semibold text-gray-800 text-sm">{{empName(req.employeeId)}}</p>
-              <p class="text-xs text-gray-600 mt-0.5">{{fmtShort(req.dateFrom||req.date)}}<span v-if="shiftById(req.myShiftId)"> · {{shiftById(req.myShiftId).start}}–{{shiftById(req.myShiftId).end}}</span> · {{typeLabel(req.type)}}</p>
-              <p v-if="shiftById(req.myShiftId)&&shiftById(req.myShiftId).roleReq" class="text-[11px] text-violet-600 font-medium mt-0.5">Rôle requis : {{roleLabel(shiftById(req.myShiftId).roleReq)}}</p>
+              <p class="text-xs text-gray-600 mt-0.5">{{fmtShort(req.dateFrom||req.date)}}<span v-if="reqShift(req)"> · {{reqShift(req).start}}–{{reqShift(req).end}}</span> · {{typeLabel(req.type)}}</p>
+              <p v-if="reqShift(req)&&reqShift(req).roleReq" class="text-[11px] text-violet-600 font-medium mt-0.5">Rôle requis : {{roleLabel(reqShift(req).roleReq)}}</p>
             </div>
             <span class="ml-auto text-xs px-2.5 py-1 rounded-full font-semibold" :class="statusClr(req.status)">{{statusLabel(req.status)}}</span>
           </div>
