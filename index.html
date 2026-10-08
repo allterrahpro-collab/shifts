@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>CoffeeShift ☕</title>
+  <title>CoffeeShift &#9749;</title>
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -15,7 +15,7 @@
     ::-webkit-scrollbar { width:3px; height:3px; }
     ::-webkit-scrollbar-thumb { background:#d1d5db; border-radius:2px; }
     select,input,textarea { -webkit-appearance:none; appearance:none; }
-    /* ─── Grid ─── */
+    /* &#9472;&#9472;&#9472; Grid &#9472;&#9472;&#9472; */
     .gw { overflow-x:auto; -webkit-overflow-scrolling:touch; }
     .st { border-collapse:collapse; table-layout:fixed; }
     .st th,.st td { border:1px solid #e5e7eb; padding:0; }
@@ -34,7 +34,7 @@
     .thi.ds { background:#eff6ff; outline:2px solid #3b82f6; outline-offset:-2px; }
     .thi.dc2 { background:#eff6ff; outline:2px dashed #93c5fd; outline-offset:-2px; }
     .tn { background:#16a34a; color:#fff; border-radius:50%; width:22px; height:22px; display:flex; align-items:center; justify-content:center; margin:0 auto; }
-    /* ─── Agenda (hours × days) ─── */
+    /* &#9472;&#9472;&#9472; Agenda (hours &#215; days) &#9472;&#9472;&#9472; */
     .hr  { width:42px; min-width:42px; position:sticky; left:0; z-index:2; background:#fff; }
     .hr div { font-size:10px; color:#9ca3af; font-weight:600; text-align:right; padding:2px 5px 0 0; }
     .acell { height:46px; vertical-align:top; cursor:pointer; transition:background .1s; }
@@ -57,11 +57,11 @@ const { createApp } = Vue;
 const uid = () => Math.random().toString(36).slice(2,11);
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const todayStr = () => ymd(new Date());
-const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+const MONTHS = ['Janvier','F\u00e9vrier','Mars','Avril','Mai','Juin','Juillet','Ao\u00fbt','Septembre','Octobre','Novembre','D\u00e9cembre'];
 const DAYS_SHORT = ['L','M','M','J','V','S','D'];
-// Métiers (indépendants des droits patron/manager/employé). Un employé peut en avoir 0, 1 ou plusieurs.
+// M\u00e9tiers (ind\u00e9pendants des droits patron/manager/employ\u00e9). Un employ\u00e9 peut en avoir 0, 1 ou plusieurs.
 const JOB_ROLES = [{v:'barista',l:'Barista'},{v:'animateur',l:'Animateur'},{v:'commis',l:'Commis'}];
-// Pôles (catégories de regroupement dans les rapports) — cumulables, indépendants des rôles de remplacement
+// P\u00f4les (cat\u00e9gories de regroupement dans les rapports) \u2014 cumulables, ind\u00e9pendants des r\u00f4les de remplacement
 const POLES = [{v:'barista',l:'Barista'},{v:'cuisine',l:'Cuisine'},{v:'salle',l:'Salle'},{v:'atelier',l:'Atelier'}];
 
 const fmtLong  = d => d ? new Date(d+'T00:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}) : '';
@@ -75,19 +75,19 @@ const validShift = s => s&&s.employeeId&&s.date&&s.start&&s.end;
 const monthKey = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
 const monthsBetween = (fromKey,toKey) => { const[fy,fm]=fromKey.split('-').map(Number),[ty,tm]=toKey.split('-').map(Number); return (ty-fy)*12+(tm-fm); };
 const mondayKey = ds => { const d=new Date(ds+'T00:00:00'); d.setDate(d.getDate()-((d.getDay()+6)%7)); return ymd(d); };
-// Jours fériés français (fixes + basés sur Pâques)
+// Jours f\u00e9ri\u00e9s fran\u00e7ais (fixes + bas\u00e9s sur P\u00e2ques)
 const _holiCache={};
 function frenchHolidays(year){
   if(_holiCache[year])return _holiCache[year];
-  // Pâques (algorithme de Meeus/Butcher)
+  // P\u00e2ques (algorithme de Meeus/Butcher)
   const a=year%19,b=Math.floor(year/100),c=year%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),mo=Math.floor((h+l-7*m+114)/31),da=((h+l-7*m+114)%31)+1;
   const easter=new Date(year,mo-1,da);
   const add=(base,n)=>{const x=new Date(base);x.setDate(x.getDate()+n);return ymd(x);};
   const o={};
-  o[year+'-01-01']='Jour de l\'An';o[year+'-05-01']='Fête du Travail';o[year+'-05-08']='Victoire 1945';
-  o[year+'-07-14']='Fête nationale';o[year+'-08-15']='Assomption';o[year+'-11-01']='Toussaint';
-  o[year+'-11-11']='Armistice';o[year+'-12-25']='Noël';
-  o[add(easter,1)]='Lundi de Pâques';o[add(easter,39)]='Ascension';o[add(easter,50)]='Lundi de Pentecôte';
+  o[year+'-01-01']='Jour de l\'An';o[year+'-05-01']='F\u00eate du Travail';o[year+'-05-08']='Victoire 1945';
+  o[year+'-07-14']='F\u00eate nationale';o[year+'-08-15']='Assomption';o[year+'-11-01']='Toussaint';
+  o[year+'-11-11']='Armistice';o[year+'-12-25']='No\u00ebl';
+  o[add(easter,1)]='Lundi de P\u00e2ques';o[add(easter,39)]='Ascension';o[add(easter,50)]='Lundi de Pentec\u00f4te';
   _holiCache[year]=o;return o;
 }
 const holidayName = ds => ds?(frenchHolidays(+ds.slice(0,4))[ds]||''):'';
@@ -110,7 +110,7 @@ const COLORS = {
   dan:     {bg:'bg-slate-100', text:'text-slate-800', dot:'bg-slate-500' },
   julien:  {bg:'bg-green-100', text:'text-green-800', dot:'bg-green-500' },
 };
-// Palette de couleurs choisissables par employé (classes Tailwind)
+// Palette de couleurs choisissables par employ\u00e9 (classes Tailwind)
 const PALETTE = [
   {v:'blue',l:'Bleu',bg:'bg-blue-100',text:'text-blue-800',dot:'bg-blue-500'},
   {v:'purple',l:'Violet',bg:'bg-purple-100',text:'text-purple-800',dot:'bg-purple-500'},
@@ -150,7 +150,7 @@ const PATTERN=[
   [6,'orianna', '08:30','16:30'],[6,'myriam',  '09:00','14:00'],[6,'mathis','10:00','18:00'],[6,'magda','14:00','18:00'],
   [0,'myriam',  '08:30','16:30'],[0,'mathis',  '10:00','18:00'],[0,'magda', '10:00','18:00'],
 ];
-// Modèle de semaine par défaut (lun=0 … dim=6) dérivé du PATTERN
+// Mod\u00e8le de semaine par d\u00e9faut (lun=0 \u2026 dim=6) d\u00e9riv\u00e9 du PATTERN
 const SEED_TEMPLATE = PATTERN.map(p=>({dow:(p[0]===0?6:p[0]-1),employeeId:p[1],start:p[2],end:p[3]}));
 
 function generateShifts(){
@@ -168,11 +168,11 @@ const LS={
   set:(k,v)=>localStorage.setItem('cs5_'+k,JSON.stringify(v)),
 };
 
-// ─── Supabase (partage en ligne) ───
+// \u2500\u2500\u2500 Supabase (partage en ligne) \u2500\u2500\u2500
 const SUPA_URL='https://hyrnrekiqxpwoxuvekyq.supabase.co';
 const SUPA_KEY='sb_publishable_FtdRoF5z397VJzl-bVrlXg_XXvaQSMt';
 const HIST_KEYS=['users','shifts','requests','notifications','ateliers','tips','suggestions','corpo','weekTemplate'];
-const DB_KEYS=[...HIST_KEYS,'demoMode','cpPerMonth'];   // synchronisés (hors historique undo)
+const DB_KEYS=[...HIST_KEYS,'demoMode','cpPerMonth'];   // synchronis\u00e9s (hors historique undo)
 let supa=null;
 try{ if(window.supabase) supa=window.supabase.createClient(SUPA_URL,SUPA_KEY); }
 catch(e){ console.warn('Supabase init impossible',e); }
@@ -182,10 +182,10 @@ function initStorage(){
     LS.set('users',SEED_USERS);
     LS.set('shifts',generateShifts());
     LS.set('requests',[]);
-    LS.set('notifications',[{id:uid(),userId:'dan',message:'Bienvenue sur CoffeeShift ! Planning mai–sept 2026 chargé.',read:false,at:todayStr()}]);
+    LS.set('notifications',[{id:uid(),userId:'dan',message:'Bienvenue sur CoffeeShift ! Planning mai\u2013sept 2026 charg\u00e9.',read:false,at:todayStr()}]);
     LS.set('ateliers',[
       {id:uid(),employeeId:'santiago',date:'2026-05-10',title:'Atelier latte art',hours:2,type:'atelier',note:'8 participants'},
-      {id:uid(),employeeId:'santiago',date:'2026-05-22',title:'Formation hygiène alimentaire',hours:4,type:'formation',note:'Équipe complète'},
+      {id:uid(),employeeId:'santiago',date:'2026-05-22',title:'Formation hygi\u00e8ne alimentaire',hours:4,type:'formation',note:'\u00c9quipe compl\u00e8te'},
     ]);
     LS.set('tips',[]);
     LS.set('suggestions',[]);
@@ -211,9 +211,9 @@ createApp({
       tips:         LS.get('tips')         ||[],
       corpo:        LS.get('corpo')        ||[],
       weekTemplate: LS.get('weekTemplate') ||SEED_TEMPLATE,
-      demoMode:     LS.get('demoMode')!==false,   // démo par défaut tant que non désactivé
+      demoMode:     LS.get('demoMode')!==false,   // d\u00e9mo par d\u00e9faut tant que non d\u00e9sactiv\u00e9
       purgeDate:    '2026-07-31',                  // limite du planning (outil admin)
-      cpPerMonth:   LS.get('cpPerMonth')   ??2.5,  // jours de CP gagnés par mois travaillé
+      cpPerMonth:   LS.get('cpPerMonth')   ??2.5,  // jours de CP gagn\u00e9s par mois travaill\u00e9
       // corpo (Orianna)
       corpoYear:new Date().getFullYear(), corpoMonth:new Date().getMonth(), corpoAddDate:todayStr(),
       // planning
@@ -246,7 +246,7 @@ createApp({
       // reports
       repYear:new Date().getFullYear(), repMonth:new Date().getMonth(),
       repTab:'heures',   // 'heures' | 'pourboires'
-      repGroup:'none',   // 'none' | 'contrat' | 'pole' — regroupement du rapport heures
+      repGroup:'none',   // 'none' | 'contrat' | 'pole' \u2014 regroupement du rapport heures
       tipsInput:'',
       // ateliers
       showAtForm:false, editAt:null,
@@ -266,18 +266,18 @@ createApp({
     isEmployee(){return this.user?.role==='employee';},
     canEdit()   {return this.isManager||!!this.user?.admin;},
     canAdmin()  {return this.isManager||this.isPatron||!!this.user?.admin;},
-    canSeeSalaries(){return this.isManager||this.isPatron;},   // salaires réservés à toi (manager) + Julien (patron) — pas aux managers nommés
+    canSeeSalaries(){return this.isManager||this.isPatron;},   // salaires r\u00e9serv\u00e9s \u00e0 toi (manager) + Julien (patron) \u2014 pas aux managers nomm\u00e9s
     isCorpo()   {return this.user?.id==='orianna';},
     firstLogin(){if(this.demoMode)return false;const id=(this.loginForm.username||'').toLowerCase().trim();const u=this.users.find(x=>x.id===id);return !!u&&!u.password;},
     canUndo()   {return this.histIdx>0;},
     canRedo()   {return this.histIdx>=0&&this.histIdx<this.history.length-1;},
-    employees() {return this.users.filter(u=>u.role==='employee'&&u.active!==false);},   // actifs uniquement (les désactivés disparaissent partout)
-    allEmployees() {return this.users.filter(u=>u.role==='employee');},                  // tous, y compris désactivés (pour l'admin)
+    employees() {return this.users.filter(u=>u.role==='employee'&&u.active!==false);},   // actifs uniquement (les d\u00e9sactiv\u00e9s disparaissent partout)
+    allEmployees() {return this.users.filter(u=>u.role==='employee');},                  // tous, y compris d\u00e9sactiv\u00e9s (pour l'admin)
     showAteliers(){ return !!this.user; },   // chacun peut consulter/ajouter ses ateliers
     unread()    {return this.notifications.filter(n=>n.userId===this.user?.id&&!n.read).length;},
     myNotifs()  {return[...this.notifications].filter(n=>n.userId===this.user?.id).sort((a,b)=>b.at.localeCompare(a.at)).slice(0,30);},
 
-    // ─── Calendar ───
+    // \u2500\u2500\u2500 Calendar \u2500\u2500\u2500
     calDays(){
       const days=[];
       const first=new Date(this.planYear,this.planMonth,1),last=new Date(this.planYear,this.planMonth+1,0);
@@ -297,7 +297,7 @@ createApp({
       return[...(this.shiftsMap[this.dayDate]||[])].sort((a,b)=>a.start.localeCompare(b.start));
     },
 
-    // ─── Week grid ───
+    // \u2500\u2500\u2500 Week grid \u2500\u2500\u2500
     weekDays(){
       const base=new Date(),dow=base.getDay(),back=dow===0?6:dow-1;
       const mon=new Date(base);mon.setDate(base.getDate()-back+this.weekOffset*7);
@@ -314,11 +314,11 @@ createApp({
       const fd=new Date(f.ds+'T00:00:00'),ld=new Date(l.ds+'T00:00:00');
       const wn=weekNum(f.ds);
       const label=fd.getMonth()===ld.getMonth()
-        ? fd.getDate()+' – '+ld.getDate()+' '+MONTHS[ld.getMonth()]+' '+ld.getFullYear()
-        : fd.getDate()+' '+MONTHS[fd.getMonth()]+' – '+ld.getDate()+' '+MONTHS[ld.getMonth()]+' '+ld.getFullYear();
-      return `Sem. ${wn} · ${label}`;
+        ? fd.getDate()+' \u2013 '+ld.getDate()+' '+MONTHS[ld.getMonth()]+' '+ld.getFullYear()
+        : fd.getDate()+' '+MONTHS[fd.getMonth()]+' \u2013 '+ld.getDate()+' '+MONTHS[ld.getMonth()]+' '+ld.getFullYear();
+      return `Sem. ${wn} \u00b7 ${label}`;
     },
-    // Hour rows for the agenda grid — auto-fit to the week's shifts (fallback 7h–19h)
+    // Hour rows for the agenda grid \u2014 auto-fit to the week's shifts (fallback 7h\u201319h)
     weekHours(){
       let min=24,max=0;
       this.weekDays.forEach(d=>{(this.shiftsMap[d.ds]||[]).forEach(s=>{
@@ -329,7 +329,7 @@ createApp({
       const arr=[]; for(let h=min;h<max;h++)arr.push(h); return arr;
     },
     selectedShift(){ return this.selShiftId ? (this.shifts.find(s=>s.id===this.selShiftId)||null) : null; },
-    // Coût de la semaine affichée
+    // Co\u00fbt de la semaine affich\u00e9e
     weekCost(){
       let c=0;
       this.employees.forEach(emp=>{
@@ -339,7 +339,7 @@ createApp({
       });
       return Math.round(c);
     },
-    // Compteur par employé qui travaille cette semaine : heures faites vs contrat hebdo
+    // Compteur par employ\u00e9 qui travaille cette semaine : heures faites vs contrat hebdo
     weekSummary(){
       return this.employees.map(emp=>{
         const worked=this.weekDays.reduce((s,d)=>s+(this.shiftsMap[d.ds]||[]).filter(x=>x.employeeId===emp.id).reduce((a,x)=>a+diffH(x.start,x.end),0),0);
@@ -348,7 +348,7 @@ createApp({
         return {emp,worked:w,contract,delta:Math.round((w-contract)*10)/10};
       }).filter(r=>r.worked>0);
     },
-    // Alertes repos légal pour la semaine affichée
+    // Alertes repos l\u00e9gal pour la semaine affich\u00e9e
     legalWarnings(){
       const out=[],days=this.weekDays;
       this.employees.forEach(emp=>{
@@ -359,7 +359,7 @@ createApp({
         for(let j=1;j<ss.length;j++){const gap=ss[j].startAbs-ss[j-1].endAbs;if(gap>0&&gap<660){msgs.push('repos < 11h');break;}}
         const dw=[...new Set(ss.map(s=>s.i))].sort((a,b)=>a-b);
         let run=dw.length?1:0,mx=run;for(let j=1;j<dw.length;j++){run=dw[j]===dw[j-1]+1?run+1:1;if(run>mx)mx=run;}
-        if(mx>6)msgs.push('> 6 jours consécutifs');
+        if(mx>6)msgs.push('> 6 jours cons\u00e9cutifs');
         const total=days.reduce((s,d)=>s+(this.shiftsMap[d.ds]||[]).filter(x=>x.employeeId===emp.id).reduce((a,x)=>a+diffH(x.start,x.end),0),0);
         if(total>48)msgs.push((Math.round(total*10)/10)+'h > 48h/sem');
         if(msgs.length)out.push({id:emp.id,name:emp.name,msgs});
@@ -367,7 +367,7 @@ createApp({
       return out;
     },
 
-    // ─── Requests ───
+    // \u2500\u2500\u2500 Requests \u2500\u2500\u2500
     myRequests(){
       const all=[...this.requests].sort((a,b)=>(b.dateFrom||b.date||'').localeCompare(a.dateFrom||a.date||''));
       if(this.canEdit||this.isPatron)return all;
@@ -377,18 +377,18 @@ createApp({
       if(!this.user)return[];
       return this.requests.filter(r=>r.status==='pending_swap'&&r.proposedTo?.includes(this.user.id)&&!r.swapDecisions?.[this.user.id]);
     },
-    // Shifts à remplacer que l'utilisateur peut prendre (pas de chevauchement ni de congé)
+    // Shifts \u00e0 remplacer que l'utilisateur peut prendre (pas de chevauchement ni de cong\u00e9)
     openShifts(){
       if(!this.user)return[];
       return this.requests.filter(r=>{
-        if(!['pending','pending_swap','needs_manager'].includes(r.status))return false;   // inclut 'pending' (congé posé avant le shift)
+        if(!['pending','pending_swap','needs_manager'].includes(r.status))return false;   // inclut 'pending' (cong\u00e9 pos\u00e9 avant le shift)
         if(r.employeeId===this.user.id)return false;
-        const sh=this.reqShift(r);                                  // shift du jour résolu dynamiquement (même si myShiftId absent)
-        if(!sh||sh.employeeId!==r.employeeId)return false;          // il faut un shift ce jour-là, pas déjà repris
+        const sh=this.reqShift(r);                                  // shift du jour r\u00e9solu dynamiquement (m\u00eame si myShiftId absent)
+        if(!sh||sh.employeeId!==r.employeeId)return false;          // il faut un shift ce jour-l\u00e0, pas d\u00e9j\u00e0 repris
         const date=r.dateFrom||r.date;
         const clash=(this.shiftsMap[date]||[]).some(s=>s.employeeId===this.user.id&&parseTime(s.start)<parseTime(sh.end)&&parseTime(s.end)>parseTime(sh.start));
-        if(!this.canFillShift(this.user.id,sh))return false;        // rôle requis non détenu
-        return !clash && !this.onLeave(this.user.id,date);          // OK si aucun chevauchement et pas en congé ce jour-là
+        if(!this.canFillShift(this.user.id,sh))return false;        // r\u00f4le requis non d\u00e9tenu
+        return !clash && !this.onLeave(this.user.id,date);          // OK si aucun chevauchement et pas en cong\u00e9 ce jour-l\u00e0
       }).sort((a,b)=>(a.dateFrom||a.date||'').localeCompare(b.dateFrom||b.date||''));
     },
     visibleSuggestions(){
@@ -397,7 +397,7 @@ createApp({
       return all.filter(s=>s.employeeId===this.user?.id);
     },
     pendingSuggCount(){return this.suggestions.filter(s=>s.status==='pending').length;},
-    // Animateurs proposés : ceux qui ont le rôle « animateur » d'abord, puis les autres
+    // Animateurs propos\u00e9s : ceux qui ont le r\u00f4le \u00ab animateur \u00bb d'abord, puis les autres
     animatorChoices(){
       const has=e=>(e.jobRoles||[]).includes('animateur');
       return [...this.employees].sort((a,b)=>(has(b)?1:0)-(has(a)?1:0)||a.name.localeCompare(b.name));
@@ -406,26 +406,26 @@ createApp({
       const t=todayStr();
       return this.shifts.filter(s=>s.employeeId===this.user?.id&&s.date>=t).sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));
     },
-    // Shifts ajustables : à venir + passés récents (120 j), le plus récent en haut
+    // Shifts ajustables : \u00e0 venir + pass\u00e9s r\u00e9cents (120 j), le plus r\u00e9cent en haut
     myShiftsForSugg(){
       const min=new Date();min.setDate(min.getDate()-120);const lo=ymd(min);
       return this.shifts.filter(s=>s.employeeId===this.user?.id&&s.date>=lo).sort((a,b)=>b.date.localeCompare(a.date)||b.start.localeCompare(a.start));
     },
 
-    // ─── Reports: hours ───
+    // \u2500\u2500\u2500 Reports: hours \u2500\u2500\u2500
     reportData(){
       const{repYear:y,repMonth:m}=this;
       const pool=this.canAdmin?this.employees:this.employees.filter(e=>e.id===this.user.id);
       return pool.map(emp=>{
         const ws=this.shifts.filter(s=>{const d=new Date(s.date);return s.employeeId===emp.id&&d.getFullYear()===y&&d.getMonth()===m;});
         const shiftH=ws.reduce((s,x)=>s+diffH(x.start,x.end),0);
-        // heures corpo (comptées dans le décompte)
+        // heures corpo (compt\u00e9es dans le d\u00e9compte)
         const corpoH=this.corpo.filter(c=>{const d=new Date(c.date);return c.employeeId===emp.id&&d.getFullYear()===y&&d.getMonth()===m;}).reduce((s,c)=>s+diffH(c.start,c.end),0);
-        // ateliers VALIDÉS (les ateliers en attente ne comptent pas)
+        // ateliers VALID\u00c9S (les ateliers en attente ne comptent pas)
         const atH=this.ateliers.filter(a=>{const d=new Date(a.date);return a.employeeId===emp.id&&a.pending!==true&&d.getFullYear()===y&&d.getMonth()===m;}).reduce((s,a)=>s+(+a.hours||0),0);
         const worked=shiftH+corpoH+atH;   // shifts + corpo + ateliers
-        const contract=Math.round((emp.hoursPerWeek||0)*(52/12)*10)/10;   // mensualisation légale 52/12 (référence)
-        const extra=this.weeklyExtra(emp.id,y,m);   // heures sup/compl. comptées À LA SEMAINE
+        const contract=Math.round((emp.hoursPerWeek||0)*(52/12)*10)/10;   // mensualisation l\u00e9gale 52/12 (r\u00e9f\u00e9rence)
+        const extra=this.weeklyExtra(emp.id,y,m);   // heures sup/compl. compt\u00e9es \u00c0 LA SEMAINE
         const approved=this.requests.filter(r=>{const d=new Date(r.dateFrom||r.date||'');return r.employeeId===emp.id&&r.status==='approved'&&d.getFullYear()===y&&d.getMonth()===m;});
         const cpDates=approved.filter(r=>r.type==='CP'&&r.cp!==false).map(r=>r.dateFrom||r.date).filter(Boolean).sort();
         const malDates=approved.filter(r=>r.type==='maladie').map(r=>r.dateFrom||r.date).filter(Boolean).sort();
@@ -434,7 +434,7 @@ createApp({
           atHours:Math.round(atH*10)/10,corpoHours:Math.round(corpoH*10)/10,cost:Math.round(Math.max(worked,contract)*(+emp.wage||0))};
       });
     },
-    // Regroupement du rapport heures (aucun / contrat / pôle). En multi-pôle, une personne apparaît dans chaque pôle.
+    // Regroupement du rapport heures (aucun / contrat / p\u00f4le). En multi-p\u00f4le, une personne appara\u00eet dans chaque p\u00f4le.
     reportGroups(){
       const data=this.reportData;
       if(this.repGroup==='contrat'){
@@ -444,28 +444,28 @@ createApp({
       if(this.repGroup==='pole'){
         const out=POLES.map(p=>({label:p.l,rows:data.filter(r=>(r.emp.poles||[]).includes(p.v))})).filter(g=>g.rows.length);
         const none=data.filter(r=>!((r.emp.poles||[]).length));
-        if(none.length)out.push({label:'Sans pôle',rows:none});
+        if(none.length)out.push({label:'Sans p\u00f4le',rows:none});
         return out;
       }
       return [{label:'',rows:data}];
     },
 
-    // ─── Reports: tips ───
+    // \u2500\u2500\u2500 Reports: tips \u2500\u2500\u2500
     tipsData(){
       const{repYear:y,repMonth:m}=this;
       const entry=this.tips.find(t=>t.year===y&&t.month===m);
       const total=entry?+entry.amount:0;
 
-      const empData=this.employees.filter(emp=>emp.tipEligible!==false).map(emp=>{   // seuls les éligibles aux pourboires
+      const empData=this.employees.filter(emp=>emp.tipEligible!==false).map(emp=>{   // seuls les \u00e9ligibles aux pourboires
         const ws=this.shifts.filter(s=>{const d=new Date(s.date);return s.employeeId===emp.id&&d.getFullYear()===y&&d.getMonth()===m;});
         const wkndH=Math.round(ws.filter(s=>isWeekend(s.date)).reduce((a,x)=>a+diffH(x.start,x.end),0)*10)/10;
         const wkdyH=Math.round(ws.filter(s=>!isWeekend(s.date)).reduce((a,x)=>a+diffH(x.start,x.end),0)*10)/10;
-        const weighted=Math.round((wkdyH+wkndH*2)*10)/10;   // weekend ×2
+        const weighted=Math.round((wkdyH+wkndH*2)*10)/10;   // weekend \u00d72
         return{emp,wkndH,wkdyH,weighted};
       }).filter(d=>d.weighted>0);
 
       const totalW=empData.reduce((s,d)=>s+d.weighted,0);
-      const coef=totalW>0?total/totalW:0;   // total distribué = total récolté
+      const coef=totalW>0?total/totalW:0;   // total distribu\u00e9 = total r\u00e9colt\u00e9
 
       return{
         total,hasData:total>0,
@@ -476,7 +476,7 @@ createApp({
       };
     },
 
-    // ─── Ateliers ───
+    // \u2500\u2500\u2500 Ateliers \u2500\u2500\u2500
     filteredAteliers(){
       const{atYear:y,atMonth:m}=this;
       let list=this.ateliers.filter(a=>{const d=new Date(a.date);return d.getFullYear()===y&&d.getMonth()===m;});
@@ -484,7 +484,7 @@ createApp({
       return list.sort((a,b)=>a.date.localeCompare(b.date));
     },
     atLabel(){const{atYear:y,atMonth:m}=this;return MONTHS[m]+' '+y;},
-    // ─── Corpo (Orianna) ───
+    // \u2500\u2500\u2500 Corpo (Orianna) \u2500\u2500\u2500
     corpoList(){
       const{corpoYear:y,corpoMonth:m}=this;
       return this.corpo
@@ -498,26 +498,26 @@ createApp({
   mounted(){
     this.initHistory();
     window.addEventListener('keydown',this._kd=this.handleKeydown.bind(this));
-    // Synchro live entre onglets du même navigateur : recharge quand un autre onglet écrit
+    // Synchro live entre onglets du m\u00eame navigateur : recharge quand un autre onglet \u00e9crit
     window.addEventListener('storage',this._st=(e)=>{ if(e.key&&e.key.indexOf('cs5_')===0){ this.reload(true); } });
-    // Synchro cloud (Supabase) : on lit le cloud AVANT toute écriture (sinon on écraserait le cloud avec la démo locale)
+    // Synchro cloud (Supabase) : on lit le cloud AVANT toute \u00e9criture (sinon on \u00e9craserait le cloud avec la d\u00e9mo locale)
     if(supa){ this.initRemote(); }
     else { this._afterLoad(); }
   },
   beforeUnmount(){window.removeEventListener('keydown',this._kd);window.removeEventListener('storage',this._st);},
 
   methods:{
-    // ── Auth ──
+    // \u2500\u2500 Auth \u2500\u2500
     async login(){
-      this.reload(true);   // repart des données à jour (autres onglets inclus)
+      this.reload(true);   // repart des donn\u00e9es \u00e0 jour (autres onglets inclus)
       const id=this.loginForm.username.toLowerCase().trim();
       const u=this.users.find(x=>x.id===id);
       if(!u){this.loginForm.err='Identifiant inconnu.';return;}
-      if(this.demoMode){this._enter(u);return;}   // mode démo : pas de mot de passe
+      if(this.demoMode){this._enter(u);return;}   // mode d\u00e9mo : pas de mot de passe
       const pw=this.loginForm.password||'';
       if(!u.password){
-        // Première connexion : l'utilisateur choisit son mot de passe
-        if(pw.length<4){this.loginForm.err='Première connexion : choisis un mot de passe (4 caractères min).';return;}
+        // Premi\u00e8re connexion : l'utilisateur choisit son mot de passe
+        if(pw.length<4){this.loginForm.err='Premi\u00e8re connexion : choisis un mot de passe (4 caract\u00e8res min).';return;}
         if(pw!==this.loginForm.password2){this.loginForm.err='Les deux mots de passe ne correspondent pas.';return;}
         u.password=await hashPw(pw);this.commit();
         this._enter(u);
@@ -530,12 +530,12 @@ createApp({
     logout(){this.user=null;this.view='planning';this.showDay=false;this.editingCell=null;this.selectedCell=null;this.selDays=[];},
     goTo(v){this.view=v;this.showDay=false;this.showNotif=false;this.editingCell=null;this.selectedCell=null;this.selDays=[];},
 
-    // ── Persistence + Undo/Redo ──
+    // \u2500\u2500 Persistence + Undo/Redo \u2500\u2500
     save(){DB_KEYS.forEach(k=>LS.set(k,this[k]));this.pushRemote();},
     snapshot(){const o={};HIST_KEYS.forEach(k=>o[k]=JSON.parse(JSON.stringify(this[k])));return o;},
     applySnap(s){HIST_KEYS.forEach(k=>{if(s[k]!=null)this[k]=JSON.parse(JSON.stringify(s[k]));});this.save();},
     initHistory(){this.history=[this.snapshot()];this.histIdx=0;},
-    // Recharge les données depuis localStorage (login + synchro inter-onglets)
+    // Recharge les donn\u00e9es depuis localStorage (login + synchro inter-onglets)
     reload(resetHist){
       DB_KEYS.forEach(k=>{const v=LS.get(k);if(v!=null)this[k]=v;});
       if(this.user){const u=this.users.find(x=>x.id===this.user.id);if(u)this.user=u;}
@@ -547,13 +547,13 @@ createApp({
       this.shifts=this.shifts.filter(validShift);
       if(this.shifts.length!==before)this.commit();
     },
-    // Acquisition automatique des CP : +cpPerMonth par mois écoulé, idempotent via cpAccruedThru
+    // Acquisition automatique des CP : +cpPerMonth par mois \u00e9coul\u00e9, idempotent via cpAccruedThru
     cpRateOf(u){return u.cpRate!=null?(+u.cpRate||0):(+this.cpPerMonth||0);},
     accrueCP(){
       const cur=monthKey(new Date()); let changed=false;
       this.users.forEach(u=>{
         if(u.role==='patron')return;
-        if(!u.cpAccruedThru){ u.cpAccruedThru=cur; changed=true; return; }   // 1er lancement : pas de rétroactif
+        if(!u.cpAccruedThru){ u.cpAccruedThru=cur; changed=true; return; }   // 1er lancement : pas de r\u00e9troactif
         const n=monthsBetween(u.cpAccruedThru,cur);
         if(n>0){
           const rc=this.cpRateOf(u);
@@ -564,10 +564,10 @@ createApp({
       if(changed)this.commit();
     },
 
-    // ── Synchro Supabase ──
-    // Traitements post-chargement (nettoyage, acquisition CP, historique). _ready autorise enfin les écritures cloud.
+    // \u2500\u2500 Synchro Supabase \u2500\u2500
+    // Traitements post-chargement (nettoyage, acquisition CP, historique). _ready autorise enfin les \u00e9critures cloud.
     _afterLoad(){ this._ready=true; this.sanitize(); this.normalizeCpRate(); this.accrueCP(); this.migrateLeaveTypes(); this.initHistory(); },
-    // Migration unique : acquisition fixée à 2,5 j/mois pour chaque salarié (0 pour les freelances). Idempotent via cpRateNorm.
+    // Migration unique : acquisition fix\u00e9e \u00e0 2,5 j/mois pour chaque salari\u00e9 (0 pour les freelances). Idempotent via cpRateNorm.
     normalizeCpRate(){
       let changed=false;
       this.users.forEach(u=>{
@@ -577,7 +577,7 @@ createApp({
       });
       if(changed)this.commit();
     },
-    // Migration unique : « sans solde » -> CP (déduit les jours déjà accordés). Idempotent (plus de sans_solde après).
+    // Migration unique : \u00ab sans solde \u00bb -> CP (d\u00e9duit les jours d\u00e9j\u00e0 accord\u00e9s). Idempotent (plus de sans_solde apr\u00e8s).
     migrateLeaveTypes(){
       let changed=false;
       this.requests.forEach(r=>{
@@ -595,10 +595,10 @@ createApp({
         if(data&&data.length){
           data.forEach(r=>{if(DB_KEYS.includes(r.k)&&r.data!=null){this[r.k]=r.data;LS.set(r.k,r.data);this._markPushed(r.k);}});
           this.fixUserRef();this.online=true;
-          this._afterLoad();                 // écritures autorisées seulement maintenant (après lecture du cloud)
+          this._afterLoad();                 // \u00e9critures autoris\u00e9es seulement maintenant (apr\u00e8s lecture du cloud)
         } else {
           this.online=true;
-          this._afterLoad();                 // base vide → on autorise puis on envoie l'état de départ
+          this._afterLoad();                 // base vide \u2192 on autorise puis on envoie l'\u00e9tat de d\u00e9part
           this._doPush();
         }
         supa.channel('cs_state')
@@ -619,11 +619,11 @@ createApp({
     _markPushed(k){this._pushed=this._pushed||{};this._pushed[k]=JSON.stringify(this[k]);},
     pushRemote(){if(!supa)return;clearTimeout(this._pushT);this._pushT=setTimeout(()=>this._doPush(),250);},
     _doPush(){
-      if(!supa||!this._ready)return;   // jamais d'écriture avant la 1re lecture du cloud
+      if(!supa||!this._ready)return;   // jamais d'\u00e9criture avant la 1re lecture du cloud
       this._pushed=this._pushed||{};
       const rows=[];
       DB_KEYS.forEach(k=>{const j=JSON.stringify(this[k]);if(j!==this._pushed[k]){rows.push({k,data:this[k],updated_at:new Date().toISOString()});this._pushed[k]=j;}});
-      if(!rows.length)return;   // ne pousse QUE ce qui a changé localement
+      if(!rows.length)return;   // ne pousse QUE ce qui a chang\u00e9 localement
       supa.from('app_state').upsert(rows).then(({error})=>{this.online=!error;if(error)console.warn('Supabase save',error);});
     },
     commit(){
@@ -645,7 +645,7 @@ createApp({
       this.clearSel();
     },
 
-    // ── Month nav ──
+    // \u2500\u2500 Month nav \u2500\u2500
     prevMonth(){if(this.planMonth===0){this.planMonth=11;this.planYear--;}else this.planMonth--;},
     nextMonth(){if(this.planMonth===11){this.planMonth=0;this.planYear++;}else this.planMonth++;},
     dayShiftsFor(ds){
@@ -655,7 +655,7 @@ createApp({
     closeDay(){this.showDay=false;this.dayDate=null;},
     isToday(ds){return ds===todayStr();},
 
-    // ── Week nav ──
+    // \u2500\u2500 Week nav \u2500\u2500
     prevWeek(){this.weekOffset--;this.clearSel();},
     nextWeek(){this.weekOffset++;this.clearSel();},
     jumpMonth(delta){
@@ -667,9 +667,9 @@ createApp({
     goToday(){this.weekOffset=0;},
     clearSel(){this.selectedCell=null;this.editingCell=null;this.selDays=[];this.selShiftId=null;this.targetCell=null;},
 
-    // ── Cell helpers ──
+    // \u2500\u2500 Cell helpers \u2500\u2500
     shiftForCell(empId,date){return(this.shiftsMap[date]||[]).find(s=>s.employeeId===empId)||null;},
-    // ── Agenda (hours × days) ──
+    // \u2500\u2500 Agenda (hours \u00d7 days) \u2500\u2500
     hourLabel(h){return String(h).padStart(2,'0')+'h';},
     shiftsAt(date,hour){
       const lo=hour*60, hi=(hour+1)*60;
@@ -681,23 +681,23 @@ createApp({
     pickShift(s){if(!this.canEdit)return;this.selDays=[];this.targetCell=null;this.selShiftId=s.id;},
     copyShiftSel(){const s=this.selectedShift;if(s){this.shiftClip={employeeId:s.employeeId,start:s.start,end:s.end};}},
     deleteSelShift(){const s=this.selectedShift;if(s){this.shifts=this.shifts.filter(x=>x.id!==s.id);this.selShiftId=null;this.commit();}},
-    // Une personne ne peut pas se chevaucher avec elle-même
+    // Une personne ne peut pas se chevaucher avec elle-m\u00eame
     overlaps(empId,date,start,end,exceptId){
       const st=parseTime(start),en=parseTime(end);
       return (this.shiftsMap[date]||[]).some(s=>s.employeeId===empId&&s.id!==exceptId&&parseTime(s.start)<en&&parseTime(s.end)>st);
     },
-    // Absence validée de l'employé ce jour-là ?
+    // Absence valid\u00e9e de l'employ\u00e9 ce jour-l\u00e0 ?
     onLeave(empId,date){
       return this.requests.some(r=>r.employeeId===empId&&r.status==='approved'&&date>=(r.dateFrom||r.date)&&date<=(r.dateTo||r.dateFrom||r.date));
     },
     holiday(ds){return holidayName(ds);},
-    // Garde commune avant de placer/déplacer un shift
+    // Garde commune avant de placer/d\u00e9placer un shift
     canPlace(empId,date,start,end,exceptId){
-      if(this.overlaps(empId,date,start,end,exceptId)){alert(this.empName(empId)+' a déjà un shift qui chevauche ce créneau.');return false;}
-      if(this.onLeave(empId,date)){alert(this.empName(empId)+' est en absence validée le '+fmtShort(date)+'.');return false;}
+      if(this.overlaps(empId,date,start,end,exceptId)){alert(this.empName(empId)+' a d\u00e9j\u00e0 un shift qui chevauche ce cr\u00e9neau.');return false;}
+      if(this.onLeave(empId,date)){alert(this.empName(empId)+' est en absence valid\u00e9e le '+fmtShort(date)+'.');return false;}
       return true;
     },
-    // Clic sur une case vide = la sélectionner comme cible (pour ajouter / coller)
+    // Clic sur une case vide = la s\u00e9lectionner comme cible (pour ajouter / coller)
     agendaCellClick(date,hour){
       if(!this.canEdit)return;
       this.selShiftId=null;this.selDays=[];
@@ -720,7 +720,7 @@ createApp({
       this.showShift=true;
     },
     addAtTarget(){ if(this.targetCell)this.openAddAt(this.targetCell.date,this.targetCell.hour); },
-    // Drag & drop : déplacer un shift vers une autre case (jour/heure)
+    // Drag & drop : d\u00e9placer un shift vers une autre case (jour/heure)
     onDragStart(s,e){ if(!this.canEdit){return;} this.dragShiftId=s.id; if(e.dataTransfer){e.dataTransfer.effectAllowed='move';try{e.dataTransfer.setData('text/plain',s.id);}catch(_){}} },
     onDrop(date,hour){
       if(!this.canEdit||!this.dragShiftId)return;
@@ -764,7 +764,7 @@ createApp({
     },
     cancelCell(){this.editingCell=null;},
 
-    // ── Cell clipboard ──
+    // \u2500\u2500 Cell clipboard \u2500\u2500
     clearCell(eId,d){const s=this.shiftForCell(eId,d);if(s){this.shifts=this.shifts.filter(x=>x.id!==s.id);this.commit();}},
     copyCell(eId,d){const s=this.shiftForCell(eId,d);if(s){this.clipboard={start:s.start,end:s.end};this.copiedCell={empId:eId,date:d};}},
     cutCell(eId,d){this.copyCell(eId,d);this.clearCell(eId,d);this.copiedCell=null;},
@@ -776,14 +776,14 @@ createApp({
       this.commit();
     },
 
-    // ── Day clipboard ──
-    // ── Sélection multi-jours (toggle) ──
+    // \u2500\u2500 Day clipboard \u2500\u2500
+    // \u2500\u2500 S\u00e9lection multi-jours (toggle) \u2500\u2500
     selectDay(d){if(!this.canEdit)return;this.selShiftId=null;this.selectedCell=null;this.targetCell=null;
       const i=this.selDays.indexOf(d);
       if(i>=0)this.selDays.splice(i,1);else this.selDays.push(d);
     },
     selectWeek(){if(!this.canEdit)return;this.selShiftId=null;this.selectedCell=null;this.selDays=this.weekDays.map(d=>d.ds);},
-    // Copie les jours sélectionnés (mémorise la position dans la semaine, lun=0 … dim=6)
+    // Copie les jours s\u00e9lectionn\u00e9s (m\u00e9morise la position dans la semaine, lun=0 \u2026 dim=6)
     copyDaysSel(){
       if(!this.selDays.length)return;
       const items=this.selDays.map(ds=>({
@@ -793,7 +793,7 @@ createApp({
       this.daysClip={items,count:items.length};
     },
     copyWeek(){this.selectWeek();this.copyDaysSel();},
-    // Colle sur la semaine affichée, en respectant le jour de la semaine d'origine
+    // Colle sur la semaine affich\u00e9e, en respectant le jour de la semaine d'origine
     pasteDaysSel(){
       if(!this.daysClip)return;
       this.daysClip.items.forEach(it=>{
@@ -804,7 +804,7 @@ createApp({
       this.commit();
     },
     clearDaysSel(){if(!this.selDays.length)return;const set=new Set(this.selDays);this.shifts=this.shifts.filter(s=>!set.has(s.date));this.commit();},
-    // Sauter directement à la semaine d'une date
+    // Sauter directement \u00e0 la semaine d'une date
     goToWeek(){
       if(!this.weekJump)return;
       const mon=d=>{const x=new Date(d);const dow=x.getDay(),back=dow===0?6:dow-1;x.setDate(x.getDate()-back);x.setHours(0,0,0,0);return x;};
@@ -813,20 +813,20 @@ createApp({
       this.clearSel();
     },
 
-    // ── Modèle de semaine ──
+    // \u2500\u2500 Mod\u00e8le de semaine \u2500\u2500
     saveWeekAsTemplate(){
       const t=[];
       this.weekDays.forEach((d,i)=>{(this.shiftsMap[d.ds]||[]).forEach(s=>t.push({dow:i,employeeId:s.employeeId,start:s.start,end:s.end}));});
       this.weekTemplate=t;this.commit();
-      alert('Modèle enregistré ('+t.length+' shifts) — applicable aux autres semaines.');
+      alert('Mod\u00e8le enregistr\u00e9 ('+t.length+' shifts) \u2014 applicable aux autres semaines.');
     },
     applyTemplate(){
       const tpl=(this.weekTemplate&&this.weekTemplate.length)?this.weekTemplate:SEED_TEMPLATE;
-      if(!tpl.length){alert('Aucun modèle enregistré. Arrange une semaine puis « Enreg. modèle ».');return;}
+      if(!tpl.length){alert('Aucun mod\u00e8le enregistr\u00e9. Arrange une semaine puis \u00ab Enreg. mod\u00e8le \u00bb.');return;}
       const hasShifts=this.weekDays.some(d=>(this.shiftsMap[d.ds]||[]).length);
       let replace=false;
       if(hasShifts){
-        replace=confirm('Cette semaine contient déjà des shifts.\n\nOK = REMPLACER par le modèle\nAnnuler = ajouter seulement les manquants');
+        replace=confirm('Cette semaine contient d\u00e9j\u00e0 des shifts.\n\nOK = REMPLACER par le mod\u00e8le\nAnnuler = ajouter seulement les manquants');
       }
       if(replace){const set=new Set(this.weekDays.map(d=>d.ds));this.shifts=this.shifts.filter(s=>!set.has(s.date));}
       let added=0,skipped=0;
@@ -836,21 +836,21 @@ createApp({
         this.shifts.push({id:uid(),employeeId:it.employeeId,date:day.ds,start:it.start,end:it.end});added++;
       });
       this.commit();
-      alert(added+' shift(s) ajouté(s)'+(skipped?', '+skipped+' ignoré(s) (conflit/congé)':'')+'.');
+      alert(added+' shift(s) ajout\u00e9(s)'+(skipped?', '+skipped+' ignor\u00e9(s) (conflit/cong\u00e9)':'')+'.');
     },
-    // Effacer les shifts après une date (limiter le planning)
+    // Effacer les shifts apr\u00e8s une date (limiter le planning)
     purgeShiftsAfter(){
       const d=this.purgeDate;if(!d)return;
       const n=this.shifts.filter(s=>s.date>d).length;
-      if(!n){alert('Aucun shift après le '+fmtShort(d)+'.');return;}
-      if(!confirm('Effacer '+n+' shift(s) après le '+fmtShort(d)+' ? (annulable par Ctrl+Z)'))return;
+      if(!n){alert('Aucun shift apr\u00e8s le '+fmtShort(d)+'.');return;}
+      if(!confirm('Effacer '+n+' shift(s) apr\u00e8s le '+fmtShort(d)+' ? (annulable par Ctrl+Z)'))return;
       this.shifts=this.shifts.filter(s=>s.date<=d);
       this.commit();
     },
-    // ── Export iCal (.ics) ──
+    // \u2500\u2500 Export iCal (.ics) \u2500\u2500
     exportICS(all){
       const list=this.shifts.filter(s=>all?true:s.employeeId===this.user.id);
-      if(!list.length){alert('Aucun shift à exporter.');return;}
+      if(!list.length){alert('Aucun shift \u00e0 exporter.');return;}
       const dt=(date,t)=>date.replace(/-/g,'')+'T'+t.replace(':','')+'00';
       const esc=s=>String(s).replace(/([,;\\])/g,'\\$1');
       let ics='BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//CoffeeShift//FR\r\nCALSCALE:GREGORIAN\r\n';
@@ -868,15 +868,15 @@ createApp({
       a.download='coffeeshift'+(all?'-equipe':'-'+this.user.id)+'.ics';
       document.body.appendChild(a);a.click();a.remove();
     },
-    // Lien d'abonnement (calendrier qui se met à jour tout seul, via l'Edge Function Supabase)
+    // Lien d'abonnement (calendrier qui se met \u00e0 jour tout seul, via l'Edge Function Supabase)
     subscribeCal(all){
       const u=all?'all':this.user.id;
       const url=SUPA_URL+'/functions/v1/calendar?emp='+u;
       try{navigator.clipboard&&navigator.clipboard.writeText(url);}catch(e){}
-      prompt('Lien d\'abonnement (copié) — à ajouter dans ton agenda via « S\'abonner à un calendrier par URL » :',url);
+      prompt('Lien d\'abonnement (copi\u00e9) \u2014 \u00e0 ajouter dans ton agenda via \u00ab S\'abonner \u00e0 un calendrier par URL \u00bb :',url);
     },
 
-    // ── Keyboard ──
+    // \u2500\u2500 Keyboard \u2500\u2500
     handleKeydown(e){
       if(!this.user)return;
       const ae=document.activeElement, typing=ae&&['INPUT','TEXTAREA','SELECT'].includes(ae.tagName);
@@ -890,7 +890,7 @@ createApp({
       if(!this.canEdit||this.view!=='planning'||this.planView!=='week')return;
       if(this.editingCell){if(e.key==='Escape'){e.preventDefault();this.cancelCell();}return;}
       const ctrl=e.ctrlKey||e.metaKey;
-      // Flèches ← → : changer de semaine quand rien n'est sélectionné
+      // Fl\u00e8ches \u2190 \u2192 : changer de semaine quand rien n'est s\u00e9lectionn\u00e9
       if((e.key==='ArrowLeft'||e.key==='ArrowRight')&&!this.selShiftId&&!this.selDays.length){
         e.preventDefault();this.targetCell=null;
         e.key==='ArrowLeft'?this.prevWeek():this.nextWeek();return;
@@ -926,12 +926,12 @@ createApp({
       else if(e.key==='Escape')this.selectedCell=null;
     },
 
-    // ── Shift CRUD (month view) ──
-    // ── Métiers (barista / animateur / commis) ──
+    // \u2500\u2500 Shift CRUD (month view) \u2500\u2500
+    // \u2500\u2500 M\u00e9tiers (barista / animateur / commis) \u2500\u2500
     rolesOf(empId){const u=this.users.find(x=>x.id===empId);return (u&&Array.isArray(u.jobRoles))?u.jobRoles:[];},
     roleLabel(v){const r=JOB_ROLES.find(x=>x.v===v);return r?r.l:v;},
     rolesLabel(empId){const r=this.rolesOf(empId);return r.length?r.map(v=>this.roleLabel(v)).join(', '):'';},
-    // Éligible si : le shift n'exige aucun rôle, OU la personne n'a aucun rôle défini, OU elle détient le rôle requis.
+    // \u00c9ligible si : le shift n'exige aucun r\u00f4le, OU la personne n'a aucun r\u00f4le d\u00e9fini, OU elle d\u00e9tient le r\u00f4le requis.
     canFillShift(empId,sh){
       const req=sh&&sh.roleReq;
       if(!req)return true;
@@ -950,7 +950,7 @@ createApp({
     saveShift(){
       const f=this.shiftForm;
       if(!f.employeeId||!f.date||!f.start||!f.end)return;
-      if(parseTime(f.end)<=parseTime(f.start)){alert('L\'heure de fin doit être après le début.');return;}
+      if(parseTime(f.end)<=parseTime(f.start)){alert('L\'heure de fin doit \u00eatre apr\u00e8s le d\u00e9but.');return;}
       if(!this.canPlace(f.employeeId,f.date,f.start,f.end,this.editShift?this.editShift.id:null))return;
       if(this.editShift){const i=this.shifts.findIndex(s=>s.id===this.editShift.id);if(i>=0)this.shifts[i]={...this.shifts[i],...f};}
       else this.shifts.push({id:uid(),...f});
@@ -958,13 +958,13 @@ createApp({
     },
     deleteShift(id){if(!confirm('Supprimer ce shift ?'))return;this.shifts=this.shifts.filter(s=>s.id!==id);this.commit();},
 
-    // ── Leave ──
+    // \u2500\u2500 Leave \u2500\u2500
     openLeave(){this.leaveForm={dateFrom:todayStr(),dateTo:todayStr(),type:'CP',note:''};this.showLeave=true;},
     submitLeave(){
       const{dateFrom,dateTo,type,note}=this.leaveForm;
       if(!dateFrom||!dateTo)return;
       const from=dateFrom<=dateTo?dateFrom:dateTo,to=dateFrom<=dateTo?dateTo:dateFrom;
-      const dpw=+this.user.daysPerWeek||5;   // jours travaillés / semaine = plafond de CP décomptés par semaine
+      const dpw=+this.user.daysPerWeek||5;   // jours travaill\u00e9s / semaine = plafond de CP d\u00e9compt\u00e9s par semaine
       const all=datesInRange(from,to);
       const hasShift=date=>(this.shiftsMap[date]||[]).some(s=>s.employeeId===this.user.id);
       // Plafond CP par semaine = dpw, en priorisant les jours avec shift
@@ -975,34 +975,34 @@ createApp({
         const ordered=[...days.filter(hasShift),...days.filter(d=>!hasShift(d))];
         ordered.slice(0,dpw).forEach(d=>cpSet.add(d));
       });
-      // On crée une demande par jour qui a un shift (à remplacer) OU qui compte un CP
+      // On cr\u00e9e une demande par jour qui a un shift (\u00e0 remplacer) OU qui compte un CP
       const dates=all.filter(d=>hasShift(d)||cpSet.has(d));
-      if(!dates.length){alert('Rien à poser sur cette période.');return;}
+      if(!dates.length){alert('Rien \u00e0 poser sur cette p\u00e9riode.');return;}
       const groupId=dates.length>1?uid():null;
       const waLines=[];
       dates.forEach(date=>{
         const dayS=this.shiftsMap[date]||[],myShift=dayS.find(s=>s.employeeId===this.user.id);
         const shifted=new Set(dayS.map(s=>s.employeeId));
-        // seuls les collègues libres ET éligibles au rôle requis par le shift sont sollicités
+        // seuls les coll\u00e8gues libres ET \u00e9ligibles au r\u00f4le requis par le shift sont sollicit\u00e9s
         const avail=this.employees.filter(e=>e.id!==this.user.id&&!shifted.has(e.id)&&(!myShift||this.canFillShift(e.id,myShift)));
         this.requests.push({id:uid(),groupId,groupFrom:from,groupTo:to,employeeId:this.user.id,dateFrom:date,dateTo:date,type,note,cp:cpSet.has(date),
           status:myShift?'pending_swap':'pending',proposedTo:myShift?avail.map(e=>e.id):[],swapDecisions:{},myShiftId:myShift?.id||null,at:todayStr()});
         if(myShift){
           if(avail.length>0){
-            avail.forEach(e=>this.notify(e.id,`🔄 ${this.user.name} cherche un remplaçant le ${fmtShort(date)} (${myShift.start}–${myShift.end}). Tu es dispo → réponds dans CoffeeShift !`));
-            waLines.push(`• ${fmtShort(date)} ${myShift.start}–${myShift.end} → ${avail.map(e=>e.name).join(', ')}`);
+            avail.forEach(e=>this.notify(e.id,`\ud83d\udd04 ${this.user.name} cherche un rempla\u00e7ant le ${fmtShort(date)} (${myShift.start}\u2013${myShift.end}). Tu es dispo \u2192 r\u00e9ponds dans CoffeeShift !`));
+            waLines.push(`\u2022 ${fmtShort(date)} ${myShift.start}\u2013${myShift.end} \u2192 ${avail.map(e=>e.name).join(', ')}`);
           } else {
-            this.notify('dan',`⚠️ ${this.user.name} : aucun remplaçant dispo le ${fmtShort(date)}. Décision requise.`);
+            this.notify('dan',`\u26a0\ufe0f ${this.user.name} : aucun rempla\u00e7ant dispo le ${fmtShort(date)}. D\u00e9cision requise.`);
           }
         } else {
-          this.notify('dan',`📋 ${this.user.name} pose un ${this.typeLabel(type)} le ${fmtShort(date)} (jour sans shift).`);
+          this.notify('dan',`\ud83d\udccb ${this.user.name} pose un ${this.typeLabel(type)} le ${fmtShort(date)} (jour sans shift).`);
         }
       });
       if(waLines.length>0){
         this.waMsg=(waLines.length>1
-          ? `Salut ! ${this.user.name} cherche des remplaçants :\n`+waLines.join('\n')
-          : `Salut ! ${this.user.name} cherche un remplaçant :\n`+waLines[0])
-          +`\n\nMerci de répondre sur CoffeeShift ☕`;
+          ? `Salut ! ${this.user.name} cherche des rempla\u00e7ants :\n`+waLines.join('\n')
+          : `Salut ! ${this.user.name} cherche un rempla\u00e7ant :\n`+waLines[0])
+          +`\n\nMerci de r\u00e9pondre sur CoffeeShift \u2615`;
         this.showWA=true;
       }
       this.commit();this.showLeave=false;
@@ -1010,22 +1010,22 @@ createApp({
     respondSwap(rid,accept){
       const req=this.requests.find(r=>r.id===rid);if(!req)return;
       const shReq=this.shifts.find(x=>x.id===req.myShiftId);
-      if(accept&&shReq&&!this.canFillShift(this.user.id,shReq)){alert('Ce shift demande le rôle « '+this.roleLabel(shReq.roleReq)+' » que tu n\'as pas.');return;}
+      if(accept&&shReq&&!this.canFillShift(this.user.id,shReq)){alert('Ce shift demande le r\u00f4le \u00ab '+this.roleLabel(shReq.roleReq)+' \u00bb que tu n\'as pas.');return;}
       req.swapDecisions[this.user.id]=accept?'yes':'no';
       if(accept){
         const s=this.shifts.find(x=>x.id===req.myShiftId);if(s){s.coveredFor=req.employeeId;s.employeeId=this.user.id;this.save();}
         req.status='approved';req.swapBy=this.user.id;
         if(req.cp!==false)this.adjustLeave(req.employeeId,req.type,-1);
         const d=req.dateFrom||req.date;
-        this.notify(req.employeeId,`✅ ${this.user.name} prend ton shift du ${fmtShort(d)} ! Ton jour off est accordé.`);
-        this.notify('dan',`✅ Swap OK : ${this.user.name} reprend le créneau de ${this.empName(req.employeeId)} le ${fmtShort(d)}.`);
+        this.notify(req.employeeId,`\u2705 ${this.user.name} prend ton shift du ${fmtShort(d)} ! Ton jour off est accord\u00e9.`);
+        this.notify('dan',`\u2705 Swap OK : ${this.user.name} reprend le cr\u00e9neau de ${this.empName(req.employeeId)} le ${fmtShort(d)}.`);
       } else {
         const allNo=(req.proposedTo||[]).every(id=>req.swapDecisions[id]==='no');
         if(allNo){
           req.status='needs_manager';
           const d=req.dateFrom||req.date;
-          this.notify('dan',`🚨 Personne ne peut couvrir ${this.empName(req.employeeId)} le ${fmtShort(d)}. Décision manuelle requise.`);
-          this.notify(req.employeeId,`😕 Aucun collègue disponible pour le ${fmtShort(d)}. Le manager va décider.`);
+          this.notify('dan',`\ud83d\udea8 Personne ne peut couvrir ${this.empName(req.employeeId)} le ${fmtShort(d)}. D\u00e9cision manuelle requise.`);
+          this.notify(req.employeeId,`\ud83d\ude15 Aucun coll\u00e8gue disponible pour le ${fmtShort(d)}. Le manager va d\u00e9cider.`);
         }
       }
       this.commit();
@@ -1035,32 +1035,32 @@ createApp({
       req.status=approve?'approved':'refused';
       if(approve){
         const dates=datesInRange(req.dateFrom||req.date,req.dateTo||req.dateFrom||req.date);
-        if(req.cp!==false)this.adjustLeave(req.employeeId,req.type,-dates.length);   // ne décompte pas les jours hors plafond
-        // Retirer la personne du planning sur les jours validés (créneau vacant), en mémorisant pour pouvoir annuler
+        if(req.cp!==false)this.adjustLeave(req.employeeId,req.type,-dates.length);   // ne d\u00e9compte pas les jours hors plafond
+        // Retirer la personne du planning sur les jours valid\u00e9s (cr\u00e9neau vacant), en m\u00e9morisant pour pouvoir annuler
         const removed=this.shifts.filter(s=>s.employeeId===req.employeeId&&dates.includes(s.date));
         if(removed.length){req.removedShifts=removed.map(s=>({...s}));this.shifts=this.shifts.filter(s=>!(s.employeeId===req.employeeId&&dates.includes(s.date)));}
       }
       const d=req.dateFrom||req.date,lbl=req.dateFrom!==req.dateTo?fmtRange(req.dateFrom,req.dateTo):fmtShort(d);
-      this.notify(req.employeeId,approve?`✅ Ton absence (${lbl}) a été validée.`:`❌ Ton absence (${lbl}) a été refusée.`);
+      this.notify(req.employeeId,approve?`\u2705 Ton absence (${lbl}) a \u00e9t\u00e9 valid\u00e9e.`:`\u274c Ton absence (${lbl}) a \u00e9t\u00e9 refus\u00e9e.`);
       this.commit();
     },
-    // Solde concerné par un type d'absence ; null pour sans solde / maladie
+    // Solde concern\u00e9 par un type d'absence ; null pour sans solde / maladie
     balField(type){return type==='CP'?'cpBalance':null;},
-    adjustLeave(uid,type,delta){const f=this.balField(type);if(!f)return;const u=this.users.find(x=>x.id===uid);if(u)u[f]=Math.round(((u[f]||0)+delta)*10)/10;this.save();},   // négatif autorisé (CP pris en avance)
+    adjustLeave(uid,type,delta){const f=this.balField(type);if(!f)return;const u=this.users.find(x=>x.id===uid);if(u)u[f]=Math.round(((u[f]||0)+delta)*10)/10;this.save();},   // n\u00e9gatif autoris\u00e9 (CP pris en avance)
 
-    // ── Admin : annuler / revenir sur une décision ──
+    // \u2500\u2500 Admin : annuler / revenir sur une d\u00e9cision \u2500\u2500
     reverseRequestEffects(req){
-      // recréditer le solde CP si l'absence avait été accordée
+      // recr\u00e9diter le solde CP si l'absence avait \u00e9t\u00e9 accord\u00e9e
       if(req.status==='approved'&&req.cp!==false){
         const n=datesInRange(req.dateFrom||req.date,req.dateTo||req.dateFrom||req.date).length;
         this.adjustLeave(req.employeeId,req.type,+n);
       }
-      // si un échange avait réattribué le shift, le rendre au demandeur
+      // si un \u00e9change avait r\u00e9attribu\u00e9 le shift, le rendre au demandeur
       if(req.swapBy&&req.myShiftId){
         const s=this.shifts.find(x=>x.id===req.myShiftId);
         if(s&&s.employeeId===req.swapBy){s.employeeId=req.employeeId;delete s.coveredFor;}
       }
-      // si la validation avait retiré des shifts du planning, les restaurer
+      // si la validation avait retir\u00e9 des shifts du planning, les restaurer
       if(req.removedShifts&&req.removedShifts.length){
         req.removedShifts.forEach(s=>{if(!this.shifts.some(x=>x.id===s.id))this.shifts.push({...s});});
         req.removedShifts=null;
@@ -1077,7 +1077,7 @@ createApp({
         req.proposedTo=this.employees.filter(e=>e.id!==req.employeeId&&!shifted.has(e.id)&&(!sh0||this.canFillShift(e.id,sh0))).map(e=>e.id);
       } else { req.status='pending'; }
       const lbl=req.dateFrom!==req.dateTo?fmtRange(req.dateFrom,req.dateTo):fmtShort(req.dateFrom||req.date);
-      this.notify(req.employeeId,`↩️ Ta demande (${lbl}) est de nouveau en attente — décision annulée par l'admin.`);
+      this.notify(req.employeeId,`\u21a9\ufe0f Ta demande (${lbl}) est de nouveau en attente \u2014 d\u00e9cision annul\u00e9e par l'admin.`);
       this.commit();
     },
     cancelRequest(rid){
@@ -1086,26 +1086,26 @@ createApp({
       this.reverseRequestEffects(req);
       const lbl=req.dateFrom!==req.dateTo?fmtRange(req.dateFrom,req.dateTo):fmtShort(req.dateFrom||req.date);
       this.requests=this.requests.filter(r=>r.id!==rid);
-      this.notify(req.employeeId,`🗑 Ta demande (${lbl}) a été annulée par l'admin.`);
+      this.notify(req.employeeId,`\ud83d\uddd1 Ta demande (${lbl}) a \u00e9t\u00e9 annul\u00e9e par l'admin.`);
       this.commit();
     },
-    // Un employé annule sa propre demande (recrédite le CP / restitue le shift si elle était accordée)
+    // Un employ\u00e9 annule sa propre demande (recr\u00e9dite le CP / restitue le shift si elle \u00e9tait accord\u00e9e)
     cancelOwn(rid){
       const req=this.requests.find(r=>r.id===rid);if(!req)return;
       if(req.employeeId!==this.user.id&&!this.canAdmin)return;
-      if(!confirm('Annuler ta demande de congé ?'))return;
+      if(!confirm('Annuler ta demande de cong\u00e9 ?'))return;
       const hadSwap=req.swapBy;
       this.reverseRequestEffects(req);
       const lbl=req.dateFrom!==req.dateTo?fmtRange(req.dateFrom,req.dateTo):fmtShort(req.dateFrom||req.date);
       this.requests=this.requests.filter(r=>r.id!==rid);
-      this.notify('dan',`🗑 ${this.user.name} a annulé sa demande de congé (${lbl}).`);
-      this.notify('julien',`🗑 ${this.user.name} a annulé sa demande de congé (${lbl}).`);
-      if(hadSwap&&hadSwap!==this.user.id)this.notify(hadSwap,`ℹ️ ${this.user.name} a annulé son congé (${lbl}) : le shift lui revient.`);
+      this.notify('dan',`\ud83d\uddd1 ${this.user.name} a annul\u00e9 sa demande de cong\u00e9 (${lbl}).`);
+      this.notify('julien',`\ud83d\uddd1 ${this.user.name} a annul\u00e9 sa demande de cong\u00e9 (${lbl}).`);
+      if(hadSwap&&hadSwap!==this.user.id)this.notify(hadSwap,`\u2139\ufe0f ${this.user.name} a annul\u00e9 son cong\u00e9 (${lbl}) : le shift lui revient.`);
       this.commit();
     },
 
-    // ── Se positionner sur un shift à remplacer ──
-    // Shift du jour concerné par une demande, résolu même si myShiftId n'a pas été enregistré (congé posé avant le shift)
+    // \u2500\u2500 Se positionner sur un shift \u00e0 remplacer \u2500\u2500
+    // Shift du jour concern\u00e9 par une demande, r\u00e9solu m\u00eame si myShiftId n'a pas \u00e9t\u00e9 enregistr\u00e9 (cong\u00e9 pos\u00e9 avant le shift)
     reqShift(r){
       if(r.myShiftId){const s=this.shifts.find(x=>x.id===r.myShiftId);if(s)return s;}
       const date=r.dateFrom||r.date;
@@ -1114,22 +1114,22 @@ createApp({
     claimShift(rid){
       const req=this.requests.find(r=>r.id===rid);if(!req)return;
       const sh=this.reqShift(req);
-      if(sh&&!req.myShiftId)req.myShiftId=sh.id;   // mémorise le shift résolu pour la suite (annulation, etc.)
+      if(sh&&!req.myShiftId)req.myShiftId=sh.id;   // m\u00e9morise le shift r\u00e9solu pour la suite (annulation, etc.)
       const d=req.dateFrom||req.date;
-      if(sh&&this.onLeave(this.user.id,d)){alert('Tu es en absence validée le '+fmtShort(d)+'.');return;}
-      if(sh&&!this.canFillShift(this.user.id,sh)){alert('Ce shift demande le rôle « '+this.roleLabel(sh.roleReq)+' » que tu n\'as pas.');return;}
-      if(sh&&this.overlaps(this.user.id,d,sh.start,sh.end,sh.id)){alert('Tu as déjà un shift qui chevauche ce créneau.');return;}
-      if(!confirm(`Prendre le shift de ${this.empName(req.employeeId)} le ${fmtShort(d)}${sh?' ('+sh.start+'–'+sh.end+')':''} ?`))return;
+      if(sh&&this.onLeave(this.user.id,d)){alert('Tu es en absence valid\u00e9e le '+fmtShort(d)+'.');return;}
+      if(sh&&!this.canFillShift(this.user.id,sh)){alert('Ce shift demande le r\u00f4le \u00ab '+this.roleLabel(sh.roleReq)+' \u00bb que tu n\'as pas.');return;}
+      if(sh&&this.overlaps(this.user.id,d,sh.start,sh.end,sh.id)){alert('Tu as d\u00e9j\u00e0 un shift qui chevauche ce cr\u00e9neau.');return;}
+      if(!confirm(`Prendre le shift de ${this.empName(req.employeeId)} le ${fmtShort(d)}${sh?' ('+sh.start+'\u2013'+sh.end+')':''} ?`))return;
       if(sh){sh.coveredFor=req.employeeId;sh.employeeId=this.user.id;}
       req.swapDecisions=req.swapDecisions||{};req.swapDecisions[this.user.id]='yes';
       req.status='approved';req.swapBy=this.user.id;
       if(req.cp!==false)this.adjustLeave(req.employeeId,req.type,-1);
-      this.notify(req.employeeId,`✅ ${this.user.name} prend ton shift du ${fmtShort(d)} ! Ton jour off est accordé.`);
-      this.notify('dan',`✅ ${this.user.name} se positionne sur le shift de ${this.empName(req.employeeId)} le ${fmtShort(d)}.`);
+      this.notify(req.employeeId,`\u2705 ${this.user.name} prend ton shift du ${fmtShort(d)} ! Ton jour off est accord\u00e9.`);
+      this.notify('dan',`\u2705 ${this.user.name} se positionne sur le shift de ${this.empName(req.employeeId)} le ${fmtShort(d)}.`);
       this.commit();
     },
 
-    // ── Suggestions employés ──
+    // \u2500\u2500 Suggestions employ\u00e9s \u2500\u2500
     openSugg(){this.suggForm={kind:'shift',date:todayStr(),shiftId:'',start:'',end:'',title:'',atelierType:'atelier',hours:2,note:''};this.showSugg=true;},
     onSuggShiftPick(){
       const sh=this.shifts.find(s=>s.id===this.suggForm.shiftId);
@@ -1142,12 +1142,12 @@ createApp({
         const sh=this.shifts.find(s=>s.id===f.shiftId);
         this.suggestions.push({id:uid(),employeeId:this.user.id,kind:'shift',shiftId:f.shiftId,date:sh?sh.date:f.date,
           start:f.start,end:f.end,oldStart:sh?.start||'',oldEnd:sh?.end||'',note:f.note,status:'pending',at:todayStr()});
-        this.notify('dan',`💡 ${this.user.name} propose d'ajuster son shift du ${fmtShort(sh?sh.date:f.date)} → ${f.start}–${f.end}.`);
+        this.notify('dan',`\ud83d\udca1 ${this.user.name} propose d'ajuster son shift du ${fmtShort(sh?sh.date:f.date)} \u2192 ${f.start}\u2013${f.end}.`);
       } else {
         if(!f.title||!f.date)return;
         this.suggestions.push({id:uid(),employeeId:this.user.id,kind:'atelier',date:f.date,title:f.title,
           atelierType:f.atelierType,hours:+f.hours,note:f.note,status:'pending',at:todayStr()});
-        this.notify('dan',`💡 ${this.user.name} propose un ${this.atTypeLabel(f.atelierType)} le ${fmtShort(f.date)} : ${f.title}.`);
+        this.notify('dan',`\ud83d\udca1 ${this.user.name} propose un ${this.atTypeLabel(f.atelierType)} le ${fmtShort(f.date)} : ${f.title}.`);
       }
       this.commit();this.showSugg=false;
     },
@@ -1158,26 +1158,26 @@ createApp({
         if(s.kind==='shift'){
           const sh=this.shifts.find(x=>x.id===s.shiftId);
           if(sh){
-            if(this.overlaps(sh.employeeId,sh.date,s.start,s.end,sh.id)){alert(this.empName(sh.employeeId)+' aurait un chevauchement avec ce nouvel horaire — non appliqué.');s.status='pending';return;}
+            if(this.overlaps(sh.employeeId,sh.date,s.start,s.end,sh.id)){alert(this.empName(sh.employeeId)+' aurait un chevauchement avec ce nouvel horaire \u2014 non appliqu\u00e9.');s.status='pending';return;}
             sh.start=s.start;sh.end=s.end;
           }
-          this.notify(s.employeeId,`✅ Ton horaire du ${fmtShort(s.date)} a été ajusté à ${s.start}–${s.end}.`);
+          this.notify(s.employeeId,`\u2705 Ton horaire du ${fmtShort(s.date)} a \u00e9t\u00e9 ajust\u00e9 \u00e0 ${s.start}\u2013${s.end}.`);
         } else {
           this.ateliers.push({id:uid(),employeeId:s.employeeId,date:s.date,title:s.title,hours:+s.hours,type:s.atelierType,note:s.note||''});
-          this.notify(s.employeeId,`✅ Ta suggestion « ${s.title} » a été validée et ajoutée aux ateliers.`);
+          this.notify(s.employeeId,`\u2705 Ta suggestion \u00ab ${s.title} \u00bb a \u00e9t\u00e9 valid\u00e9e et ajout\u00e9e aux ateliers.`);
         }
       } else {
-        this.notify(s.employeeId,`❌ Ta suggestion a été refusée.`);
+        this.notify(s.employeeId,`\u274c Ta suggestion a \u00e9t\u00e9 refus\u00e9e.`);
       }
       this.commit();
     },
     deleteSugg(id){if(!confirm('Supprimer cette suggestion ?'))return;this.suggestions=this.suggestions.filter(x=>x.id!==id);this.commit();},
 
-    // ── Notifications ──
+    // \u2500\u2500 Notifications \u2500\u2500
     notify(userId,message){this.notifications.push({id:uid(),userId,message,read:false,at:todayStr()});this.save();},
     markRead(){this.notifications.forEach(n=>{if(n.userId===this.user?.id)n.read=true;});this.save();},
 
-    // ── Admin ──
+    // \u2500\u2500 Admin \u2500\u2500
     startEdit(emp){this.editEmp=emp;this.empForm={...emp};if(this.empForm.cpRate==null)this.empForm.cpRate=this.cpPerMonth;if(this.empForm.daysPerWeek==null)this.empForm.daysPerWeek=5;this.empForm.jobRoles=Array.isArray(emp.jobRoles)?[...emp.jobRoles]:[];this.empForm.poles=Array.isArray(emp.poles)?[...emp.poles]:[];if(this.empForm.tipEligible==null)this.empForm.tipEligible=true;this.empForm.color=emp.color||'';},
     cancelEdit(){this.editEmp=null;},
     saveEmp(){
@@ -1185,8 +1185,8 @@ createApp({
       if(i>=0)this.users[i]={...this.users[i],...this.empForm,hoursPerWeek:+this.empForm.hoursPerWeek,cpBalance:+this.empForm.cpBalance,wage:+(this.empForm.wage||0),cpRate:+(this.empForm.cpRate||0),daysPerWeek:+(this.empForm.daysPerWeek||5),jobRoles:Array.isArray(this.empForm.jobRoles)?[...this.empForm.jobRoles]:[],poles:Array.isArray(this.empForm.poles)?[...this.empForm.poles]:[],tipEligible:this.empForm.tipEligible!==false,color:this.empForm.color||''};
       this.commit();this.editEmp=null;
     },
-    // Créer un employé
-    slugId(name){let b=(name||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'').slice(0,12)||'emp';let id=b,i=2;while(this.users.some(u=>u.id===id)){id=b+i;i++;}return id;},
+    // Cr\u00e9er un employ\u00e9
+    slugId(name){let b=(name||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'').slice(0,12)||'emp';let id=b,i=2;while(this.users.some(u=>u.id===id)){id=b+i;i++;}return id;},
     openNewEmp(){this.editEmp=null;this.newEmp={name:'',email:'',contractType:'CDI',hoursPerWeek:35,daysPerWeek:5,cpBalance:0,wage:12,cpRate:this.cpPerMonth,hasAteliers:false,jobRoles:[],poles:[],tipEligible:true,color:''};this.showNewEmp=true;},
     createEmp(){
       const f=this.newEmp;
@@ -1199,29 +1199,29 @@ createApp({
         poles:Array.isArray(f.poles)?[...f.poles]:[],tipEligible:f.tipEligible!==false,color:f.color||'',active:true,
         hasAteliers:!!f.hasAteliers,cpAccruedThru:monthKey(new Date())});
       this.commit();this.showNewEmp=false;
-      alert('Employé créé : '+f.name.trim()+' (identifiant de connexion : '+id+').');
+      alert('Employ\u00e9 cr\u00e9\u00e9 : '+f.name.trim()+' (identifiant de connexion : '+id+').');
     },
     toggleActive(emp){
       const i=this.users.findIndex(u=>u.id===emp.id);if(i<0)return;
       const willDisable=this.users[i].active!==false;
-      if(willDisable&&!confirm('Désactiver '+emp.name+' ?\nIl/elle disparaît du planning, des remplacements, des rapports et des pourboires, mais son profil et son historique sont conservés. Réactivable à tout moment.'))return;
+      if(willDisable&&!confirm('D\u00e9sactiver '+emp.name+' ?\nIl/elle dispara\u00eet du planning, des remplacements, des rapports et des pourboires, mais son profil et son historique sont conserv\u00e9s. R\u00e9activable \u00e0 tout moment.'))return;
       this.users[i]={...this.users[i],active:!willDisable};
       if(this.editEmp&&this.editEmp.id===emp.id)this.editEmp=null;
       this.commit();
     },
-    // Donner / retirer l'accès manager (droits complets comme toi, SANS les salaires). La personne reste dans le planning.
+    // Donner / retirer l'acc\u00e8s manager (droits complets comme toi, SANS les salaires). La personne reste dans le planning.
     toggleAdmin(emp){
       const i=this.users.findIndex(u=>u.id===emp.id);if(i<0)return;
       const willGive=!this.users[i].admin;
       if(!confirm(willGive
-        ? 'Donner l\'accès manager à '+emp.name+' ?\nIl/elle pourra tout faire comme toi (planning, congés, remplacements, ateliers, pourboires, gestion des employés) SAUF voir les salaires. Il/elle reste dans le planning.'
-        : 'Retirer l\'accès manager à '+emp.name+' ?'))return;
+        ? 'Donner l\'acc\u00e8s manager \u00e0 '+emp.name+' ?\nIl/elle pourra tout faire comme toi (planning, cong\u00e9s, remplacements, ateliers, pourboires, gestion des employ\u00e9s) SAUF voir les salaires. Il/elle reste dans le planning.'
+        : 'Retirer l\'acc\u00e8s manager \u00e0 '+emp.name+' ?'))return;
       this.users[i]={...this.users[i],admin:willGive};
-      if(this.user&&this.user.id===emp.id)this.user=this.users[i];   // garde la session à jour
+      if(this.user&&this.user.id===emp.id)this.user=this.users[i];   // garde la session \u00e0 jour
       this.commit();
     },
     deleteEmp(emp){
-      if(!confirm('Supprimer '+emp.name+' ?\nSes shifts et heures corpo seront aussi retirés. (annulable par Ctrl+Z)'))return;
+      if(!confirm('Supprimer '+emp.name+' ?\nSes shifts et heures corpo seront aussi retir\u00e9s. (annulable par Ctrl+Z)'))return;
       this.users=this.users.filter(u=>u.id!==emp.id);
       this.shifts=this.shifts.filter(s=>s.employeeId!==emp.id);
       this.corpo=this.corpo.filter(c=>c.employeeId!==emp.id);
@@ -1229,7 +1229,7 @@ createApp({
       this.commit();
     },
 
-    // ── Reports ──
+    // \u2500\u2500 Reports \u2500\u2500
     prevRep(){if(this.repMonth===0){this.repMonth=11;this.repYear--;}else this.repMonth--;},
     nextRep(){if(this.repMonth===11){this.repMonth=0;this.repYear++;}else this.repMonth++;},
     saveTips(){
@@ -1242,7 +1242,7 @@ createApp({
     },
     currentTipsAmount(){const e=this.tips.find(t=>t.year===this.repYear&&t.month===this.repMonth);return e?e.amount:null;},
 
-    // ── Pourboires : suivi des versements ──
+    // \u2500\u2500 Pourboires : suivi des versements \u2500\u2500
     tipsEntry(){return this.tips.find(t=>t.year===this.repYear&&t.month===this.repMonth);},
     tipPaid(empId){const e=this.tipsEntry();return !!(e&&e.paid&&e.paid[empId]);},
     tipPaidAt(empId){const e=this.tipsEntry();return (e&&e.paid&&e.paid[empId]&&e.paid[empId].at)||'';},
@@ -1261,38 +1261,38 @@ createApp({
       this.commit();
     },
 
-    // ── Ateliers ──
+    // \u2500\u2500 Ateliers \u2500\u2500
     prevAt(){if(this.atMonth===0){this.atMonth=11;this.atYear--;}else this.atMonth--;},
     nextAt(){if(this.atMonth===11){this.atMonth=0;this.atYear++;}else this.atMonth++;},
     openAtForm(){
       this.editAt=null;
-      const who=this.canAdmin?'':this.user.id;   // admin : choix explicite de l'animateur à chaque fois
+      const who=this.canAdmin?'':this.user.id;   // admin : choix explicite de l'animateur \u00e0 chaque fois
       this.atForm={employeeId:who,date:todayStr(),title:'',hours:2,type:'atelier',note:''};
       this.showAtForm=true;
     },
     openEditAt(a){this.editAt=a;this.atForm={...a};this.showAtForm=true;},
     saveAt(){
       if(!this.atForm.title||!this.atForm.date)return;
-      if(!this.canAdmin)this.atForm.employeeId=this.user.id;   // un employé non-admin ne crée que pour lui-même
+      if(!this.canAdmin)this.atForm.employeeId=this.user.id;   // un employ\u00e9 non-admin ne cr\u00e9e que pour lui-m\u00eame
       if(!this.atForm.employeeId){alert('Indique qui anime cet atelier.');return;}
-      const pend=!this.canAdmin;   // saisie employé = à valider ; saisie admin/manager = direct
+      const pend=!this.canAdmin;   // saisie employ\u00e9 = \u00e0 valider ; saisie admin/manager = direct
       if(this.editAt){const i=this.ateliers.findIndex(a=>a.id===this.editAt.id);if(i>=0)this.ateliers[i]={...this.ateliers[i],...this.atForm,hours:+this.atForm.hours,pending:pend};}
       else this.ateliers.push({id:uid(),...this.atForm,hours:+this.atForm.hours,pending:pend});
-      if(pend)this.notify('dan',`🎓 ${this.user.name} a ajouté un atelier à valider : « ${this.atForm.title} » le ${fmtShort(this.atForm.date)}.`);
+      if(pend)this.notify('dan',`\ud83c\udf93 ${this.user.name} a ajout\u00e9 un atelier \u00e0 valider : \u00ab ${this.atForm.title} \u00bb le ${fmtShort(this.atForm.date)}.`);
       this.commit();this.showAtForm=false;
     },
     deleteAt(id){if(!confirm('Supprimer cet atelier ?'))return;this.ateliers=this.ateliers.filter(a=>a.id!==id);this.commit();},
     validateAt(id){
       const a=this.ateliers.find(x=>x.id===id);if(!a)return;
       a.pending=false;
-      this.notify(a.employeeId,`✅ Ton atelier « ${a.title} » du ${fmtShort(a.date)} a été validé.`);
+      this.notify(a.employeeId,`\u2705 Ton atelier \u00ab ${a.title} \u00bb du ${fmtShort(a.date)} a \u00e9t\u00e9 valid\u00e9.`);
       this.commit();
     },
 
-    // ── Corpo (Orianna) ──
+    // \u2500\u2500 Corpo (Orianna) \u2500\u2500
     prevCorpo(){if(this.corpoMonth===0){this.corpoMonth=11;this.corpoYear--;}else this.corpoMonth--;},
     nextCorpo(){if(this.corpoMonth===11){this.corpoMonth=0;this.corpoYear++;}else this.corpoMonth++;},
-    // Génère un créneau 9h30-18h30 pour chaque mardi du mois affiché (sans doublon)
+    // G\u00e9n\u00e8re un cr\u00e9neau 9h30-18h30 pour chaque mardi du mois affich\u00e9 (sans doublon)
     prefillCorpoTuesdays(){
       const{corpoYear:y,corpoMonth:m}=this;
       const existing=new Set(this.corpo.filter(c=>c.employeeId==='orianna').map(c=>c.date));
@@ -1312,35 +1312,35 @@ createApp({
       this.corpo.push({id:uid(),employeeId:'orianna',date:ds,start:'09:30',end:'18:30'});
       this.commit();
     },
-    updateCorpo(c){ if(parseTime(c.end)<=parseTime(c.start)){alert('L\'heure de fin doit être après le début.');return;} this.commit(); },
+    updateCorpo(c){ if(parseTime(c.end)<=parseTime(c.start)){alert('L\'heure de fin doit \u00eatre apr\u00e8s le d\u00e9but.');return;} this.commit(); },
     deleteCorpo(id){this.corpo=this.corpo.filter(c=>c.id!==id);this.commit();},
 
-    // ── Mode démo ──
+    // \u2500\u2500 Mode d\u00e9mo \u2500\u2500
     toggleDemo(){
       const on=!this.demoMode;
-      if(!on&&!confirm('Désactiver le mode démo ?\nLa plateforme devient officielle : chaque personne devra créer son mot de passe à la prochaine connexion.'))return;
-      this.demoMode=on;this.save();   // global : enregistré et synchronisé pour tout le monde
+      if(!on&&!confirm('D\u00e9sactiver le mode d\u00e9mo ?\nLa plateforme devient officielle : chaque personne devra cr\u00e9er son mot de passe \u00e0 la prochaine connexion.'))return;
+      this.demoMode=on;this.save();   // global : enregistr\u00e9 et synchronis\u00e9 pour tout le monde
     },
 
-    // ── Helpers ──
+    // \u2500\u2500 Helpers \u2500\u2500
     empName(id){return this.users.find(u=>u.id===id)?.name||id;},
     shiftById(id){return this.shifts.find(s=>s.id===id)||null;},
     hrs(start,end){return diffH(start,end);},
-    // Heures sup/complémentaires comptées À LA SEMAINE (lun→dim), pour les semaines dont le lundi tombe dans le mois.
-    // = somme des dépassements hebdo au-delà du contrat (0 si chaque semaine respecte le contrat).
+    // Heures sup/compl\u00e9mentaires compt\u00e9es \u00c0 LA SEMAINE (lun\u2192dim), pour les semaines dont le lundi tombe dans le mois.
+    // = somme des d\u00e9passements hebdo au-del\u00e0 du contrat (0 si chaque semaine respecte le contrat).
     weeklyExtra(empId,y,m){
       const u=this.users.find(u=>u.id===empId);
       const wc=+(u?.hoursPerWeek)||0;
       const dpw=+(u?.daysPerWeek)||5;
-      const dayH=dpw>0?wc/dpw:0;               // durée d'une journée standard
+      const dayH=dpw>0?wc/dpw:0;               // dur\u00e9e d'une journ\u00e9e standard
       const wkKey=date=>{const d=new Date(date+'T00:00:00');const back=(d.getDay()+6)%7;d.setDate(d.getDate()-back);return ymd(d);};
       const weeks={},absWk={};
       const add=(date,h)=>{const k=wkKey(date);weeks[k]=(weeks[k]||0)+h;};
       this.shifts.forEach(s=>{if(s.employeeId===empId)add(s.date,diffH(s.start,s.end));});
       this.corpo.forEach(c=>{if(c.employeeId===empId)add(c.date,diffH(c.start,c.end));});
       this.ateliers.forEach(a=>{if(a.employeeId===empId&&a.pending!==true)add(a.date,+a.hours||0);});
-      // Option B : chaque absence validée (CP / maladie) réduit le seuil de SA semaine,
-      // pour qu'un jour posé ne masque jamais les heures supp faites les autres jours.
+      // Option B : chaque absence valid\u00e9e (CP / maladie) r\u00e9duit le seuil de SA semaine,
+      // pour qu'un jour pos\u00e9 ne masque jamais les heures supp faites les autres jours.
       this.requests.forEach(r=>{
         if(r.employeeId!==empId||r.status!=='approved')return;
         if(r.type!=='CP'&&r.type!=='maladie')return;
@@ -1350,7 +1350,7 @@ createApp({
       Object.keys(weeks).forEach(k=>{
         const mon=new Date(k+'T00:00:00');
         if(mon.getFullYear()===y&&mon.getMonth()===m){
-          const thr=Math.max(0, wc-(absWk[k]||0)*dayH);   // seuil réduit par les absences
+          const thr=Math.max(0, wc-(absWk[k]||0)*dayH);   // seuil r\u00e9duit par les absences
           extra+=Math.max(0,weeks[k]-thr);
         }
       });
@@ -1363,15 +1363,15 @@ createApp({
     togglePole(form,v){if(!Array.isArray(form.poles))form.poles=[];const i=form.poles.indexOf(v);if(i>=0)form.poles.splice(i,1);else form.poles.push(v);},
     fmtLong, fmtShort, fmtRange,
     reqDateLabel(req){const f=req.dateFrom||req.date||'',t=req.dateTo||f;return fmtRange(f,t);},
-    typeLabel(t){return{CP:'Congé Payé',sans_solde:'Sans solde',maladie:'Arrêt maladie'}[t]||t;},
-    statusLabel(s){return{pending_swap:'Swap en attente',pending:'En attente',approved:'Accordé',refused:'Refusé',needs_manager:'Décision manager'}[s]||s;},
+    typeLabel(t){return{CP:'Cong\u00e9 Pay\u00e9',sans_solde:'Sans solde',maladie:'Arr\u00eat maladie'}[t]||t;},
+    statusLabel(s){return{pending_swap:'Swap en attente',pending:'En attente',approved:'Accord\u00e9',refused:'Refus\u00e9',needs_manager:'D\u00e9cision manager'}[s]||s;},
     statusClr(s){return{pending_swap:'bg-amber-100 text-amber-800',pending:'bg-gray-100 text-gray-600',approved:'bg-green-100 text-green-800',refused:'bg-red-100 text-red-700',needs_manager:'bg-orange-100 text-orange-800'}[s]||'bg-gray-100 text-gray-600';},
     contractClr(t){return t==='Freelance'?'bg-violet-50 text-violet-700':'bg-blue-50 text-blue-700';},
-    atTypeLabel(t){return{atelier:'Atelier client',formation:'Formation équipe',autre:'Autre'}[t]||t;},
+    atTypeLabel(t){return{atelier:'Atelier client',formation:'Formation \u00e9quipe',autre:'Autre'}[t]||t;},
     atTypeClr(t){return{atelier:'bg-orange-50 text-orange-700',formation:'bg-blue-50 text-blue-700',autre:'bg-gray-100 text-gray-600'}[t]||'bg-gray-100 text-gray-600';},
-    copyWA(){navigator.clipboard.writeText(this.waMsg).then(()=>alert('Copié !'));},
+    copyWA(){navigator.clipboard.writeText(this.waMsg).then(()=>alert('Copi\u00e9 !'));},
     fmt2(n){return(+n).toFixed(2);},
-    // Liste compacte de jours : « 5, 12 et 18 juin » (regroupe le mois si commun)
+    // Liste compacte de jours : \u00ab 5, 12 et 18 juin \u00bb (regroupe le mois si commun)
     dayList(dates){
       if(!dates||!dates.length)return'';
       return dates.map(d=>{const x=new Date(d+'T00:00:00');return x.getDate()+' '+MONTHS[x.getMonth()].toLowerCase();}).join(', ');
@@ -1383,7 +1383,7 @@ createApp({
 <div v-if="!user" class="min-h-screen bg-gradient-to-br from-green-50 to-gray-100 flex items-center justify-center p-5">
   <div class="w-full max-w-sm bg-white rounded-3xl shadow-xl p-8">
     <div class="text-center mb-8">
-      <div class="text-5xl mb-3">☕</div>
+      <div class="text-5xl mb-3">\u2615</div>
       <h1 class="text-2xl font-bold text-gray-800 tracking-tight">CoffeeShift</h1>
       <p class="text-gray-400 text-sm mt-1">Gestion du planning</p>
     </div>
@@ -1398,15 +1398,15 @@ createApp({
         <input v-model="loginForm.password" type="password" :autocomplete="firstLogin?'new-password':'current-password'"
           class="w-full border border-gray-200 bg-gray-50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:bg-white transition"/>
       </div>
-      <p v-if="demoMode" class="text-[11px] text-amber-600 bg-amber-50 rounded-lg px-3 py-2">Mode démo actif : connexion sans mot de passe.</p>
+      <p v-if="demoMode" class="text-[11px] text-amber-600 bg-amber-50 rounded-lg px-3 py-2">Mode d\u00e9mo actif : connexion sans mot de passe.</p>
       <div v-if="firstLogin">
         <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Confirme le mot de passe</label>
         <input v-model="loginForm.password2" type="password" autocomplete="new-password"
           class="w-full border border-gray-200 bg-gray-50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:bg-white transition"/>
-        <p class="text-[11px] text-green-600 mt-1.5">Première connexion : ce mot de passe sera demandé les fois suivantes.</p>
+        <p class="text-[11px] text-green-600 mt-1.5">Premi\u00e8re connexion : ce mot de passe sera demand\u00e9 les fois suivantes.</p>
       </div>
       <p v-if="loginForm.err" class="text-red-500 text-xs font-medium">{{loginForm.err}}</p>
-      <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition-colors text-sm shadow-sm">{{firstLogin?'Créer mon mot de passe':'Se connecter'}}</button>
+      <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition-colors text-sm shadow-sm">{{firstLogin?'Cr\u00e9er mon mot de passe':'Se connecter'}}</button>
     </form>
   </div>
 </div>
@@ -1417,21 +1417,21 @@ createApp({
   <!-- Top bar -->
   <header class="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between sticky top-0 z-20 shadow-sm">
     <div class="flex items-center gap-2">
-      <span class="text-2xl leading-none">☕</span>
+      <span class="text-2xl leading-none">\u2615</span>
       <span class="font-bold text-gray-800">CoffeeShift</span>
     </div>
     <div class="flex items-center gap-3">
       <div class="flex items-center gap-1.5">
         <span class="w-2 h-2 rounded-full" :class="empColor(user.id).dot"></span>
         <span class="text-xs font-medium text-gray-600">{{user.name}}</span>
-        <span class="w-1.5 h-1.5 rounded-full" :class="online?'bg-green-500':'bg-gray-300'" :title="online?'Synchronisé en ligne':'Hors-ligne (local)'"></span>
+        <span class="w-1.5 h-1.5 rounded-full" :class="online?'bg-green-500':'bg-gray-300'" :title="online?'Synchronis\u00e9 en ligne':'Hors-ligne (local)'"></span>
       </div>
       <div class="flex items-center">
         <button @click="undo" :disabled="!canUndo" title="Annuler (Ctrl+Z)"
           class="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent">
           <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h11a4 4 0 014 4v0a4 4 0 01-4 4h-3M3 10l4-4M3 10l4 4"/></svg>
         </button>
-        <button @click="redo" :disabled="!canRedo" title="Rétablir (Ctrl+Y)"
+        <button @click="redo" :disabled="!canRedo" title="R\u00e9tablir (Ctrl+Y)"
           class="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent">
           <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 10H10a4 4 0 00-4 4v0a4 4 0 004 4h3M21 10l-4-4M21 10l-4 4"/></svg>
         </button>
@@ -1463,7 +1463,7 @@ createApp({
 
   <main class="flex-1 overflow-y-auto pb-20">
 
-    <!-- ════ PLANNING ════ -->
+    <!-- \u2550\u2550\u2550\u2550 PLANNING \u2550\u2550\u2550\u2550 -->
     <div v-if="view==='planning'">
       <!-- Tabs -->
       <div class="bg-white border-b border-gray-100 px-4 pt-3 pb-0 flex items-center gap-1 sticky top-[57px] z-10">
@@ -1489,7 +1489,7 @@ createApp({
             class="border-b border-r border-gray-100 min-h-[70px] p-1 cursor-pointer active:bg-gray-50"
             :class="[!day.cur?'bg-gray-50/60':'',holiday(day.ds)?'bg-rose-50':'',isToday(day.ds)?'ring-1 ring-inset ring-green-400':'']">
             <div class="flex items-center justify-between">
-              <span v-if="holiday(day.ds)" class="text-[8px] leading-none" :title="holiday(day.ds)">🎉</span><span v-else></span>
+              <span v-if="holiday(day.ds)" class="text-[8px] leading-none" :title="holiday(day.ds)">\ud83c\udf89</span><span v-else></span>
               <div class="text-right text-[11px] font-medium mb-0.5 pr-0.5"
                 :class="[!day.cur?'text-gray-300':isToday(day.ds)?'text-green-600 font-bold':holiday(day.ds)?'text-rose-500 font-bold':'text-gray-600']">
                 {{new Date(day.ds+'T00:00:00').getDate()}}
@@ -1506,7 +1506,7 @@ createApp({
           </div>
         </div>
         <div class="bg-white mt-2 px-4 py-3">
-          <p class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Équipe</p>
+          <p class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">\u00c9quipe</p>
           <div class="flex flex-wrap gap-x-3 gap-y-2">
             <span v-for="emp in employees" :key="emp.id" class="flex items-center gap-1.5 text-xs text-gray-600">
               <span class="w-2 h-2 rounded-full flex-shrink-0" :class="empColor(emp.id).dot"></span>{{emp.name}}
@@ -1519,12 +1519,12 @@ createApp({
       <div v-else-if="planView==='week'">
         <div class="bg-white px-4 py-2.5 flex items-center justify-between border-b border-gray-100">
           <div class="flex items-center gap-0.5">
-            <button @click="jumpMonth(-1)" title="Mois précédent" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100"><svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.5 19l-7-7 7-7M11.5 19l-7-7 7-7"/></svg></button>
-            <button @click="prevWeek" title="Semaine précédente" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100"><svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg></button>
+            <button @click="jumpMonth(-1)" title="Mois pr\u00e9c\u00e9dent" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100"><svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.5 19l-7-7 7-7M11.5 19l-7-7 7-7"/></svg></button>
+            <button @click="prevWeek" title="Semaine pr\u00e9c\u00e9dente" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100"><svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg></button>
           </div>
           <div class="text-center">
             <p class="font-semibold text-gray-800 text-xs">{{weekLabel}}</p>
-            <button v-if="weekOffset!==0" @click="goToday" class="text-[11px] text-green-600 hover:underline mt-0.5">← Aujourd'hui</button>
+            <button v-if="weekOffset!==0" @click="goToday" class="text-[11px] text-green-600 hover:underline mt-0.5">\u2190 Aujourd'hui</button>
           </div>
           <div class="flex items-center gap-0.5">
             <button @click="nextWeek" title="Semaine suivante" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100"><svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></button>
@@ -1533,55 +1533,55 @@ createApp({
         </div>
         <!-- Navigation rapide + copie de semaine -->
         <div class="bg-white border-b border-gray-100 px-3 py-2 flex items-center gap-2 overflow-x-auto whitespace-nowrap">
-          <label class="text-[11px] text-gray-400 font-medium">Aller à :</label>
+          <label class="text-[11px] text-gray-400 font-medium">Aller \u00e0 :</label>
           <input v-model="weekJump" @change="goToWeek" type="date" class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-green-400"/>
           <template v-if="canEdit">
             <span class="text-gray-300">|</span>
             <button @click="copyWeek" class="bg-violet-600 text-white px-2.5 py-1 rounded-lg text-xs font-semibold">Copier la semaine</button>
             <button v-if="daysClip" @click="pasteDaysSel" class="bg-blue-100 text-blue-700 px-2.5 py-1 rounded-lg text-xs font-semibold">Coller ici</button>
             <span class="text-gray-300">|</span>
-            <button @click="applyTemplate" class="bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-semibold">Appliquer modèle</button>
-            <button @click="saveWeekAsTemplate" class="bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-semibold">Enreg. modèle</button>
+            <button @click="applyTemplate" class="bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-semibold">Appliquer mod\u00e8le</button>
+            <button @click="saveWeekAsTemplate" class="bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-semibold">Enreg. mod\u00e8le</button>
           </template>
           <span class="text-gray-300">|</span>
-          <button @click="subscribeCal(false)" class="bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-semibold">📅 S'abonner</button>
+          <button @click="subscribeCal(false)" class="bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-semibold">\ud83d\udcc5 S'abonner</button>
           <button @click="exportICS(false)" class="bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-semibold">Mon .ics</button>
-          <button v-if="canAdmin" @click="exportICS(true)" class="bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-semibold">Équipe .ics</button>
+          <button v-if="canAdmin" @click="exportICS(true)" class="bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-semibold">\u00c9quipe .ics</button>
           <span v-if="canAdmin" class="text-gray-300">|</span>
-          <span v-if="canSeeSalaries" class="text-[11px] text-gray-500 font-medium">Coût sem. : <b class="text-gray-800">{{weekCost}} €</b></span>
+          <span v-if="canSeeSalaries" class="text-[11px] text-gray-500 font-medium">Co\u00fbt sem. : <b class="text-gray-800">{{weekCost}} \u20ac</b></span>
         </div>
-        <!-- Compteurs hebdo par employé : heures vs contrat -->
+        <!-- Compteurs hebdo par employ\u00e9 : heures vs contrat -->
         <div v-if="weekSummary.length" class="bg-white border-b border-gray-100 px-3 py-2 flex gap-2 overflow-x-auto whitespace-nowrap">
           <span class="text-[11px] text-gray-400 font-medium self-center flex-shrink-0">Heures / contrat :</span>
           <div v-for="r in weekSummary" :key="r.emp.id" class="flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] flex-shrink-0"
             :class="r.delta>0?'bg-amber-50 border-amber-200':r.delta<0?'bg-gray-50 border-gray-200':'bg-green-50 border-green-200'"
-            :title="r.delta>0?('+'+r.delta+'h au-delà du contrat'):r.delta<0?(r.delta+'h sous le contrat'):'pile au contrat'">
+            :title="r.delta>0?('+'+r.delta+'h au-del\u00e0 du contrat'):r.delta<0?(r.delta+'h sous le contrat'):'pile au contrat'">
             <span class="w-2 h-2 rounded-full flex-shrink-0" :class="empColor(r.emp.id).dot"></span>
             <span class="font-semibold text-gray-700">{{r.emp.name}}</span>
             <span class="text-gray-500">{{r.worked}}<span v-if="r.contract">/{{r.contract}}</span>h</span>
             <span v-if="r.contract" class="font-semibold" :class="r.delta>0?'text-amber-700':r.delta<0?'text-gray-400':'text-green-700'">{{r.delta>0?'+':''}}{{r.delta}}</span>
           </div>
         </div>
-        <!-- Alertes repos légal -->
+        <!-- Alertes repos l\u00e9gal -->
         <div v-if="canEdit&&legalWarnings.length" class="bg-red-50 border-b border-red-100 px-3 py-1.5 text-[11px] text-red-700">
-          <span class="font-bold">⚠️ Repos légal :</span>
-          <span v-for="(w,i) in legalWarnings" :key="w.id">{{i?' · ':' '}}{{w.name}} ({{w.msgs.join(', ')}})</span>
+          <span class="font-bold">\u26a0\ufe0f Repos l\u00e9gal :</span>
+          <span v-for="(w,i) in legalWarnings" :key="w.id">{{i?' \u00b7 ':' '}}{{w.name}} ({{w.msgs.join(', ')}})</span>
         </div>
         <div v-if="canEdit" class="bg-blue-50 border-b border-blue-100 px-3 py-1.5 flex gap-3 overflow-x-auto whitespace-nowrap text-[10px] text-blue-600 font-medium">
-          <span>Glisser-déposer pour déplacer</span><span class="text-blue-400">|</span><span>Case vide → Ajouter (ou Entrée)</span><span>Copier shift puis Ctrl+V</span><span>← → semaine</span><span class="text-blue-400">|</span><span class="font-bold">Ctrl+Z annuler</span>
+          <span>Glisser-d\u00e9poser pour d\u00e9placer</span><span class="text-blue-400">|</span><span>Case vide \u2192 Ajouter (ou Entr\u00e9e)</span><span>Copier shift puis Ctrl+V</span><span>\u2190 \u2192 semaine</span><span class="text-blue-400">|</span><span class="font-bold">Ctrl+Z annuler</span>
         </div>
         <!-- Shift clipboard bar -->
         <div v-if="shiftClip" class="bg-amber-50 border-b border-amber-200 px-3 py-1.5 flex items-center gap-2 text-xs text-amber-700 font-medium">
-          <span>📋 Shift copié : {{empName(shiftClip.employeeId)}} · {{shiftClip.start}}–{{shiftClip.end}} — sélectionne une case puis Ctrl+V</span>
-          <button @click="shiftClip=null" class="ml-auto text-amber-400 hover:text-amber-600 font-bold">✕</button>
+          <span>\ud83d\udccb Shift copi\u00e9 : {{empName(shiftClip.employeeId)}} \u00b7 {{shiftClip.start}}\u2013{{shiftClip.end}} \u2014 s\u00e9lectionne une case puis Ctrl+V</span>
+          <button @click="shiftClip=null" class="ml-auto text-amber-400 hover:text-amber-600 font-bold">\u2715</button>
         </div>
         <!-- Day(s) clipboard bar -->
         <div v-if="daysClip" class="bg-violet-50 border-b border-violet-200 px-3 py-1.5 flex items-center gap-2 text-xs text-violet-700 font-medium">
-          <span>📅 {{daysClip.count}} jour(s) copié(s) — va sur une autre semaine puis « Coller »</span>
+          <span>\ud83d\udcc5 {{daysClip.count}} jour(s) copi\u00e9(s) \u2014 va sur une autre semaine puis \u00ab Coller \u00bb</span>
           <button @click="pasteDaysSel" class="bg-violet-600 text-white px-2 py-0.5 rounded-md text-[11px] font-semibold">Coller ici</button>
-          <button @click="daysClip=null" class="ml-auto text-violet-400 hover:text-violet-600 font-bold">✕</button>
+          <button @click="daysClip=null" class="ml-auto text-violet-400 hover:text-violet-600 font-bold">\u2715</button>
         </div>
-        <!-- Agenda : heures (lignes) × jours (colonnes) -->
+        <!-- Agenda : heures (lignes) \u00d7 jours (colonnes) -->
         <div class="gw bg-white">
           <table class="st">
             <thead>
@@ -1596,7 +1596,7 @@ createApp({
                       <span v-if="day.isToday" class="tn">{{day.num}}</span>
                       <span v-else>{{day.num}}</span>
                     </div>
-                    <div v-if="holiday(day.ds)" class="text-[8px] text-rose-500 font-bold leading-none" :title="holiday(day.ds)">🎉 férié</div>
+                    <div v-if="holiday(day.ds)" class="text-[8px] text-rose-500 font-bold leading-none" :title="holiday(day.ds)">\ud83c\udf89 f\u00e9ri\u00e9</div>
                   </div>
                 </th>
               </tr>
@@ -1614,8 +1614,8 @@ createApp({
                     <template v-for="s in shiftsAt(day.ds,h)" :key="s.id">
                       <div class="achip" :draggable="canEdit?'true':'false'" :class="[empColor(s.employeeId).bg,empColor(s.employeeId).text,isSelShift(s)?'sels':'']"
                         @click.stop="pickShift(s)" @dblclick.stop="openEditShift(s)" @dragstart="onDragStart(s,$event)"
-                        :title="empName(s.employeeId)+' · '+s.start+'–'+s.end+(s.coveredFor?' · remplace '+empName(s.coveredFor):'')">
-                        <span>{{empName(s.employeeId)}}</span><span v-if="s.coveredFor" style="opacity:.85" :title="'remplace '+empName(s.coveredFor)"> ↩{{empName(s.coveredFor)}}</span><span v-if="isShiftStart(s,h)" style="opacity:.7"> · {{s.start}}</span>
+                        :title="empName(s.employeeId)+' \u00b7 '+s.start+'\u2013'+s.end+(s.coveredFor?' \u00b7 remplace '+empName(s.coveredFor):'')">
+                        <span>{{empName(s.employeeId)}}</span><span v-if="s.coveredFor" style="opacity:.85" :title="'remplace '+empName(s.coveredFor)"> \u21a9{{empName(s.coveredFor)}}</span><span v-if="isShiftStart(s,h)" style="opacity:.7"> \u00b7 {{s.start}}</span>
                       </div>
                     </template>
                   </div>
@@ -1626,44 +1626,44 @@ createApp({
         </div>
         <!-- Selected shift actions bar -->
         <div v-if="selectedShift&&canEdit" class="bg-white border-t border-gray-200 px-3 py-2 flex gap-1.5 items-center">
-          <span class="text-xs text-gray-400 flex-1 truncate">{{empName(selectedShift.employeeId)}} · {{fmtShort(selectedShift.date)}} · {{selectedShift.start}}–{{selectedShift.end}}</span>
-          <button @click="openEditShift(selectedShift)" class="bg-green-600 text-white px-2.5 py-1.5 rounded-lg text-xs font-semibold">Éditer</button>
+          <span class="text-xs text-gray-400 flex-1 truncate">{{empName(selectedShift.employeeId)}} \u00b7 {{fmtShort(selectedShift.date)}} \u00b7 {{selectedShift.start}}\u2013{{selectedShift.end}}</span>
+          <button @click="openEditShift(selectedShift)" class="bg-green-600 text-white px-2.5 py-1.5 rounded-lg text-xs font-semibold">\u00c9diter</button>
           <button @click="copyShiftSel" class="bg-gray-100 text-gray-700 px-2.5 py-1.5 rounded-lg text-xs font-semibold">Copier</button>
           <button @click="deleteSelShift" class="bg-red-50 text-red-500 px-2.5 py-1.5 rounded-lg text-xs font-semibold">Suppr.</button>
-          <button @click="selShiftId=null" class="text-gray-400 px-1.5 text-sm font-bold">✕</button>
+          <button @click="selShiftId=null" class="text-gray-400 px-1.5 text-sm font-bold">\u2715</button>
         </div>
         <!-- Day(s) actions bar -->
         <div v-if="selDays.length&&canEdit" class="bg-white border-t border-gray-200 px-3 py-2 flex gap-1.5 items-center flex-wrap">
-          <span class="text-xs text-gray-400 flex-1 truncate">📅 {{selDays.length}} jour(s) sélectionné(s)</span>
+          <span class="text-xs text-gray-400 flex-1 truncate">\ud83d\udcc5 {{selDays.length}} jour(s) s\u00e9lectionn\u00e9(s)</span>
           <button @click="selectWeek" class="bg-gray-100 text-gray-700 px-2.5 py-1.5 rounded-lg text-xs font-semibold">Toute la semaine</button>
           <button @click="copyDaysSel" class="bg-violet-600 text-white px-2.5 py-1.5 rounded-lg text-xs font-semibold">Copier</button>
           <button v-if="daysClip" @click="pasteDaysSel" class="bg-blue-100 text-blue-700 px-2.5 py-1.5 rounded-lg text-xs font-semibold">Coller</button>
           <button @click="clearDaysSel" class="bg-red-50 text-red-500 px-2.5 py-1.5 rounded-lg text-xs font-semibold">Vider</button>
-          <button @click="selDays=[]" class="text-gray-400 px-1.5 text-sm font-bold">✕</button>
+          <button @click="selDays=[]" class="text-gray-400 px-1.5 text-sm font-bold">\u2715</button>
         </div>
         <!-- Target cell actions bar -->
         <div v-if="targetCell&&canEdit&&!selectedShift&&!selDays.length" class="bg-white border-t border-gray-200 px-3 py-2 flex gap-1.5 items-center">
-          <span class="text-xs text-gray-400 flex-1 truncate">🎯 {{fmtShort(targetCell.date)}} · {{hourLabel(targetCell.hour)}}</span>
+          <span class="text-xs text-gray-400 flex-1 truncate">\ud83c\udfaf {{fmtShort(targetCell.date)}} \u00b7 {{hourLabel(targetCell.hour)}}</span>
           <button @click="addAtTarget" class="bg-green-600 text-white px-2.5 py-1.5 rounded-lg text-xs font-semibold">+ Ajouter ici</button>
           <button v-if="shiftClip" @click="pasteAtTarget" class="bg-blue-100 text-blue-700 px-2.5 py-1.5 rounded-lg text-xs font-semibold">Coller (Ctrl+V)</button>
-          <button @click="targetCell=null" class="text-gray-400 px-1.5 text-sm font-bold">✕</button>
+          <button @click="targetCell=null" class="text-gray-400 px-1.5 text-sm font-bold">\u2715</button>
         </div>
       </div>
     </div>
 
-    <!-- ════ REQUESTS ════ -->
+    <!-- \u2550\u2550\u2550\u2550 REQUESTS \u2550\u2550\u2550\u2550 -->
     <div v-else-if="view==='requests'" class="p-4 space-y-4">
       <!-- Sub-tabs -->
       <div class="flex gap-1 bg-gray-100 p-1 rounded-xl">
         <button @click="reqTab='conges'" class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors"
-          :class="reqTab==='conges'?'bg-white text-gray-800 shadow-sm':'text-gray-500'">Congés</button>
+          :class="reqTab==='conges'?'bg-white text-gray-800 shadow-sm':'text-gray-500'">Cong\u00e9s</button>
         <button @click="reqTab='remplace'" class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors"
-          :class="reqTab==='remplace'?'bg-white text-gray-800 shadow-sm':'text-gray-500'">À remplacer<span v-if="openShifts.length>0" class="ml-1 bg-amber-500 text-white text-[9px] font-bold rounded-full px-1.5">{{openShifts.length}}</span></button>
+          :class="reqTab==='remplace'?'bg-white text-gray-800 shadow-sm':'text-gray-500'">\u00c0 remplacer<span v-if="openShifts.length>0" class="ml-1 bg-amber-500 text-white text-[9px] font-bold rounded-full px-1.5">{{openShifts.length}}</span></button>
         <button @click="reqTab='sugg'" class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors"
-          :class="reqTab==='sugg'?'bg-white text-gray-800 shadow-sm':'text-gray-500'">💡 Suggestions<span v-if="(canEdit||isPatron)&&pendingSuggCount>0" class="ml-1 bg-green-500 text-white text-[9px] font-bold rounded-full px-1.5">{{pendingSuggCount}}</span></button>
+          :class="reqTab==='sugg'?'bg-white text-gray-800 shadow-sm':'text-gray-500'">\ud83d\udca1 Suggestions<span v-if="(canEdit||isPatron)&&pendingSuggCount>0" class="ml-1 bg-green-500 text-white text-[9px] font-bold rounded-full px-1.5">{{pendingSuggCount}}</span></button>
       </div>
 
-      <!-- ── CONGÉS ── -->
+      <!-- \u2500\u2500 CONG\u00c9S \u2500\u2500 -->
       <div v-if="reqTab==='conges'" class="space-y-4">
         <div class="flex items-center justify-between">
           <h2 class="font-semibold text-gray-800">Demandes d'absence</h2>
@@ -1673,11 +1673,11 @@ createApp({
         <div v-for="req in myRequests" :key="req.id" class="bg-white rounded-2xl border border-gray-200 p-4 space-y-3">
           <div class="flex items-start justify-between gap-2">
             <div class="min-w-0">
-              <p class="font-semibold text-gray-800 text-sm"><span v-if="canEdit||isPatron">{{empName(req.employeeId)}} — </span>{{reqDateLabel(req)}}</p>
+              <p class="font-semibold text-gray-800 text-sm"><span v-if="canEdit||isPatron">{{empName(req.employeeId)}} \u2014 </span>{{reqDateLabel(req)}}</p>
               <p class="text-xs text-gray-500 mt-0.5">{{typeLabel(req.type)}}</p>
-              <p v-if="req.groupId" class="text-[10px] text-violet-500 font-medium mt-0.5">↳ congé du {{fmtShort(req.groupFrom)}} au {{fmtShort(req.groupTo)}} (jour par jour)</p>
-              <p v-if="req.swapBy" class="text-xs text-green-700 font-medium mt-0.5">🔄 Shift repris par {{empName(req.swapBy)}}</p>
-              <p v-else-if="req.status==='approved'&&req.myShiftId" class="text-xs text-gray-500 mt-0.5">Validé sans remplaçant (créneau libéré)</p>
+              <p v-if="req.groupId" class="text-[10px] text-violet-500 font-medium mt-0.5">\u21b3 cong\u00e9 du {{fmtShort(req.groupFrom)}} au {{fmtShort(req.groupTo)}} (jour par jour)</p>
+              <p v-if="req.swapBy" class="text-xs text-green-700 font-medium mt-0.5">\ud83d\udd04 Shift repris par {{empName(req.swapBy)}}</p>
+              <p v-else-if="req.status==='approved'&&req.myShiftId" class="text-xs text-gray-500 mt-0.5">Valid\u00e9 sans rempla\u00e7ant (cr\u00e9neau lib\u00e9r\u00e9)</p>
               <p v-if="req.note" class="text-xs text-gray-400 italic mt-0.5">"{{req.note}}"</p>
             </div>
             <span class="flex-shrink-0 text-xs px-2.5 py-1 rounded-full font-semibold" :class="statusClr(req.status)">{{statusLabel(req.status)}}</span>
@@ -1687,7 +1687,7 @@ createApp({
               <button @click="managerDecide(req.id,true)"  class="flex-1 bg-green-600 text-white text-xs py-2 rounded-xl font-semibold hover:bg-green-700">Valider</button>
               <button @click="managerDecide(req.id,false)" class="flex-1 bg-red-50 text-red-600 border border-red-200 text-xs py-2 rounded-xl font-semibold">Refuser</button>
             </template>
-            <button v-else @click="revertDecision(req.id)" class="flex-1 bg-amber-50 text-amber-700 border border-amber-200 text-xs py-2 rounded-xl font-semibold">↩️ Revenir sur la décision</button>
+            <button v-else @click="revertDecision(req.id)" class="flex-1 bg-amber-50 text-amber-700 border border-amber-200 text-xs py-2 rounded-xl font-semibold">\u21a9\ufe0f Revenir sur la d\u00e9cision</button>
             <button @click="cancelRequest(req.id)" class="bg-gray-100 text-gray-600 text-xs px-3 py-2 rounded-xl font-semibold hover:bg-red-50 hover:text-red-600">Annuler</button>
           </div>
           <div v-else-if="req.employeeId===user.id && req.status!=='rejected'" class="pt-1 border-t border-gray-100">
@@ -1696,17 +1696,17 @@ createApp({
         </div>
       </div>
 
-      <!-- ── À REMPLACER ── -->
+      <!-- \u2500\u2500 \u00c0 REMPLACER \u2500\u2500 -->
       <div v-else-if="reqTab==='remplace'" class="space-y-3">
-        <p class="text-xs text-gray-400">Shifts que des collègues cherchent à faire couvrir. Tu ne vois que les jours où tu es libre — positionne-toi pour prendre le créneau.</p>
-        <div v-if="openShifts.length===0" class="text-center py-12 text-gray-400 text-sm">Aucun shift à remplacer pour le moment</div>
+        <p class="text-xs text-gray-400">Shifts que des coll\u00e8gues cherchent \u00e0 faire couvrir. Tu ne vois que les jours o\u00f9 tu es libre \u2014 positionne-toi pour prendre le cr\u00e9neau.</p>
+        <div v-if="openShifts.length===0" class="text-center py-12 text-gray-400 text-sm">Aucun shift \u00e0 remplacer pour le moment</div>
         <div v-for="req in openShifts" :key="req.id" class="bg-white rounded-2xl border border-gray-200 p-4 space-y-3">
           <div class="flex items-center gap-2">
             <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" :class="empColor(req.employeeId).dot"></span>
             <div class="min-w-0">
               <p class="font-semibold text-gray-800 text-sm">{{empName(req.employeeId)}}</p>
-              <p class="text-xs text-gray-600 mt-0.5">{{fmtShort(req.dateFrom||req.date)}}<span v-if="reqShift(req)"> · {{reqShift(req).start}}–{{reqShift(req).end}}</span> · {{typeLabel(req.type)}}</p>
-              <p v-if="reqShift(req)&&reqShift(req).roleReq" class="text-[11px] text-violet-600 font-medium mt-0.5">Rôle requis : {{roleLabel(reqShift(req).roleReq)}}</p>
+              <p class="text-xs text-gray-600 mt-0.5">{{fmtShort(req.dateFrom||req.date)}}<span v-if="reqShift(req)"> \u00b7 {{reqShift(req).start}}\u2013{{reqShift(req).end}}</span> \u00b7 {{typeLabel(req.type)}}</p>
+              <p v-if="reqShift(req)&&reqShift(req).roleReq" class="text-[11px] text-violet-600 font-medium mt-0.5">R\u00f4le requis : {{roleLabel(reqShift(req).roleReq)}}</p>
             </div>
             <span class="ml-auto text-xs px-2.5 py-1 rounded-full font-semibold" :class="statusClr(req.status)">{{statusLabel(req.status)}}</span>
           </div>
@@ -1714,7 +1714,7 @@ createApp({
         </div>
       </div>
 
-      <!-- ── SUGGESTIONS ── -->
+      <!-- \u2500\u2500 SUGGESTIONS \u2500\u2500 -->
       <div v-else-if="reqTab==='sugg'" class="space-y-3">
         <div class="flex items-center justify-between">
           <h2 class="font-semibold text-gray-800">Suggestions</h2>
@@ -1728,8 +1728,8 @@ createApp({
                 <span class="text-xs px-2 py-0.5 rounded-full font-semibold" :class="s.kind==='shift'?'bg-blue-50 text-blue-700':'bg-orange-50 text-orange-700'">{{s.kind==='shift'?'Horaire':atTypeLabel(s.atelierType)}}</span>
                 <span v-if="canEdit||isPatron" class="text-xs text-gray-400">{{empName(s.employeeId)}}</span>
               </div>
-              <p v-if="s.kind==='shift'" class="font-semibold text-gray-800 text-sm">{{fmtShort(s.date)}} : <span v-if="s.oldStart" class="text-gray-400 line-through">{{s.oldStart}}–{{s.oldEnd}}</span> → {{s.start}}–{{s.end}}</p>
-              <p v-else class="font-semibold text-gray-800 text-sm">{{s.title}} <span class="text-xs font-normal text-gray-500">· {{fmtShort(s.date)}} · {{s.hours}}h</span></p>
+              <p v-if="s.kind==='shift'" class="font-semibold text-gray-800 text-sm">{{fmtShort(s.date)}} : <span v-if="s.oldStart" class="text-gray-400 line-through">{{s.oldStart}}\u2013{{s.oldEnd}}</span> \u2192 {{s.start}}\u2013{{s.end}}</p>
+              <p v-else class="font-semibold text-gray-800 text-sm">{{s.title}} <span class="text-xs font-normal text-gray-500">\u00b7 {{fmtShort(s.date)}} \u00b7 {{s.hours}}h</span></p>
               <p v-if="s.note" class="text-xs text-gray-400 italic mt-0.5">"{{s.note}}"</p>
             </div>
             <span class="flex-shrink-0 text-xs px-2.5 py-1 rounded-full font-semibold" :class="statusClr(s.status)">{{statusLabel(s.status)}}</span>
@@ -1745,7 +1745,7 @@ createApp({
       </div>
     </div>
 
-    <!-- ════ REPORTS ════ -->
+    <!-- \u2550\u2550\u2550\u2550 REPORTS \u2550\u2550\u2550\u2550 -->
     <div v-else-if="view==='reports'" class="p-4 space-y-4">
       <!-- Month nav -->
       <div class="flex items-center justify-between">
@@ -1758,7 +1758,7 @@ createApp({
         <button @click="repTab='heures'" class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors"
           :class="repTab==='heures'?'bg-white text-gray-800 shadow-sm':'text-gray-500'">Heures</button>
         <button v-if="canEdit||isPatron" @click="repTab='pourboires'" class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors"
-          :class="repTab==='pourboires'?'bg-white text-gray-800 shadow-sm':'text-gray-500'">💰 Pourboires</button>
+          :class="repTab==='pourboires'?'bg-white text-gray-800 shadow-sm':'text-gray-500'">\ud83d\udcb0 Pourboires</button>
       </div>
 
       <!-- HEURES tab -->
@@ -1767,10 +1767,10 @@ createApp({
         <div class="flex items-center gap-1.5 bg-gray-100 rounded-xl p-1 text-center">
           <button @click="repGroup='none'" class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors" :class="repGroup==='none'?'bg-white text-gray-800 shadow-sm':'text-gray-500'">Tous</button>
           <button @click="repGroup='contrat'" class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors" :class="repGroup==='contrat'?'bg-white text-gray-800 shadow-sm':'text-gray-500'">Par contrat</button>
-          <button @click="repGroup='pole'" class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors" :class="repGroup==='pole'?'bg-white text-gray-800 shadow-sm':'text-gray-500'">Par pôle</button>
+          <button @click="repGroup='pole'" class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors" :class="repGroup==='pole'?'bg-white text-gray-800 shadow-sm':'text-gray-500'">Par p\u00f4le</button>
         </div>
         <template v-for="grp in reportGroups" :key="grp.label||'all'">
-          <p v-if="grp.label" class="text-xs font-bold text-gray-500 uppercase tracking-wide pt-2 pl-1">{{grp.label}} <span class="text-gray-300 font-medium">· {{grp.rows.length}}</span></p>
+          <p v-if="grp.label" class="text-xs font-bold text-gray-500 uppercase tracking-wide pt-2 pl-1">{{grp.label}} <span class="text-gray-300 font-medium">\u00b7 {{grp.rows.length}}</span></p>
           <div v-for="row in grp.rows" :key="(grp.label||'all')+row.emp.id" class="bg-white rounded-2xl border border-gray-200 p-4 space-y-3">
           <div class="flex items-center gap-2">
             <span class="w-3 h-3 rounded-full flex-shrink-0" :class="empColor(row.emp.id).dot"></span>
@@ -1780,43 +1780,43 @@ createApp({
               <span class="text-xs text-gray-400">{{row.emp.hoursPerWeek}}h/sem</span>
             </div>
           </div>
-          <!-- Références (heures travaillées vs contrat) -->
+          <!-- R\u00e9f\u00e9rences (heures travaill\u00e9es vs contrat) -->
           <div class="grid grid-cols-2 gap-2 text-center">
             <div class="bg-gray-50 rounded-xl py-2.5"><p class="text-[10px] text-gray-400 font-medium">Contrat</p><p class="font-bold text-gray-700 text-sm mt-0.5">{{row.contract}}h</p></div>
-            <div class="bg-gray-50 rounded-xl py-2.5"><p class="text-[10px] text-gray-400 font-medium">Travaillé</p><p class="font-bold text-gray-700 text-sm mt-0.5">{{row.worked}}h</p></div>
+            <div class="bg-gray-50 rounded-xl py-2.5"><p class="text-[10px] text-gray-400 font-medium">Travaill\u00e9</p><p class="font-bold text-gray-700 text-sm mt-0.5">{{row.worked}}h</p></div>
           </div>
-          <!-- Deux compteurs INDÉPENDANTS : heures supp d'un côté, congés payés de l'autre -->
+          <!-- Deux compteurs IND\u00c9PENDANTS : heures supp d'un c\u00f4t\u00e9, cong\u00e9s pay\u00e9s de l'autre -->
           <div class="grid grid-cols-2 gap-2">
             <div class="rounded-xl p-3" :class="row.extra>0?'bg-amber-50 border border-amber-200':'bg-gray-50 border border-gray-100'">
               <p class="text-[10px] font-semibold uppercase tracking-wide" :class="row.extra>0?'text-amber-500':'text-gray-400'">Heures supp du mois</p>
               <p class="font-bold text-lg mt-0.5" :class="row.extra>0?'text-amber-700':'text-gray-500'">{{row.extra}}h</p>
             </div>
             <div class="rounded-xl p-3" :class="row.cpUsed>0?'bg-blue-50 border border-blue-200':'bg-gray-50 border border-gray-100'">
-              <p class="text-[10px] font-semibold uppercase tracking-wide" :class="row.cpUsed>0?'text-blue-500':'text-gray-400'">CP posés du mois</p>
+              <p class="text-[10px] font-semibold uppercase tracking-wide" :class="row.cpUsed>0?'text-blue-500':'text-gray-400'">CP pos\u00e9s du mois</p>
               <p class="font-bold text-lg mt-0.5" :class="row.cpUsed>0?'text-blue-700':'text-gray-500'">{{row.cpUsed}}j</p>
               <p v-if="row.cpDates.length" class="text-[11px] text-blue-600 mt-1 leading-snug">{{dayList(row.cpDates)}}</p>
             </div>
           </div>
-          <p class="text-[10px] text-gray-400">Compteurs indépendants : un jour de CP/maladie réduit le seuil hebdo de sa semaine, donc il ne masque jamais les heures supp faites les autres jours — les deux ne se compensent pas.</p>
+          <p class="text-[10px] text-gray-400">Compteurs ind\u00e9pendants : un jour de CP/maladie r\u00e9duit le seuil hebdo de sa semaine, donc il ne masque jamais les heures supp faites les autres jours \u2014 les deux ne se compensent pas.</p>
           <!-- Santiago's ateliers hours -->
           <div v-if="row.atHours>0" class="bg-orange-50 rounded-xl px-3 py-2 flex items-center gap-2">
-            <span class="text-orange-600 text-xs">🎓</span>
-            <span class="text-xs text-orange-700 font-medium">dont {{row.atHours}}h ateliers/formations (incluses dans le total travaillé)</span>
+            <span class="text-orange-600 text-xs">\ud83c\udf93</span>
+            <span class="text-xs text-orange-700 font-medium">dont {{row.atHours}}h ateliers/formations (incluses dans le total travaill\u00e9)</span>
           </div>
           <div v-if="row.corpoHours>0" class="bg-pink-50 rounded-xl px-3 py-2 flex items-center gap-2">
-            <span class="text-pink-600 text-xs">🌟</span>
-            <span class="text-xs text-pink-700 font-medium">dont {{row.corpoHours}}h corpo (incluses dans le total travaillé)</span>
+            <span class="text-pink-600 text-xs">\ud83c\udf1f</span>
+            <span class="text-xs text-pink-700 font-medium">dont {{row.corpoHours}}h corpo (incluses dans le total travaill\u00e9)</span>
           </div>
           <div class="flex flex-wrap gap-1.5 pt-1">
             <span class="text-xs px-2.5 py-1 rounded-full font-medium" :class="row.emp.cpBalance<0?'bg-red-50 text-red-600':'bg-green-50 text-green-700'">CP restants : {{row.emp.cpBalance}}j<span v-if="row.emp.cpBalance<0"> (en avance)</span></span>
             <span class="text-xs bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full font-medium" :title="row.malDates.length?dayList(row.malDates):''">Maladie : {{row.malCount}}j</span>
-            <span v-if="canSeeSalaries" class="text-xs bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full font-medium">Coût : {{row.cost}} €</span>
+            <span v-if="canSeeSalaries" class="text-xs bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full font-medium">Co\u00fbt : {{row.cost}} \u20ac</span>
           </div>
         </div>
         </template>
         <div v-if="canSeeSalaries&&reportData.length" class="bg-slate-800 rounded-2xl px-4 py-3 flex justify-between items-center">
-          <span class="text-sm font-semibold text-white">Coût masse salariale du mois</span>
-          <span class="font-bold text-white text-lg">{{reportData.reduce((s,r)=>s+r.cost,0)}} €</span>
+          <span class="text-sm font-semibold text-white">Co\u00fbt masse salariale du mois</span>
+          <span class="font-bold text-white text-lg">{{reportData.reduce((s,r)=>s+r.cost,0)}} \u20ac</span>
         </div>
       </div>
 
@@ -1824,73 +1824,73 @@ createApp({
       <div v-if="repTab==='pourboires'" class="space-y-4">
         <!-- Input -->
         <div class="bg-white rounded-2xl border border-gray-200 p-4 space-y-3">
-          <p class="font-semibold text-gray-800 text-sm">Pourboires encaissés</p>
-          <p class="text-xs text-gray-400">Répartition au prorata des heures, weekend compté ×2. Le total distribué = le total entré.</p>
+          <p class="font-semibold text-gray-800 text-sm">Pourboires encaiss\u00e9s</p>
+          <p class="text-xs text-gray-400">R\u00e9partition au prorata des heures, weekend compt\u00e9 \u00d72. Le total distribu\u00e9 = le total entr\u00e9.</p>
           <div class="flex gap-2 items-center">
             <div class="relative flex-1">
               <input v-model="tipsInput" type="number" min="0" step="0.01" placeholder="Ex : 320"
                 class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 pr-8"/>
-              <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">€</span>
+              <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">\u20ac</span>
             </div>
             <button @click="saveTips" class="bg-green-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-green-700 whitespace-nowrap">Enregistrer</button>
           </div>
           <div v-if="currentTipsAmount()!==null" class="flex items-center gap-2 text-xs text-gray-500">
-            <span>💾 Montant enregistré : <b class="text-gray-800">{{currentTipsAmount()}} €</b></span>
+            <span>\ud83d\udcbe Montant enregistr\u00e9 : <b class="text-gray-800">{{currentTipsAmount()}} \u20ac</b></span>
           </div>
         </div>
 
         <!-- No data state -->
         <div v-if="!tipsData.hasData" class="text-center py-8 text-gray-400 text-sm">
-          Aucun pourboire enregistré pour ce mois.<br>Entre le montant ci-dessus pour calculer le split.
+          Aucun pourboire enregistr\u00e9 pour ce mois.<br>Entre le montant ci-dessus pour calculer le split.
         </div>
 
         <!-- Split result -->
         <div v-if="tipsData.hasData">
-          <!-- Coefficients (weekend ×2) -->
+          <!-- Coefficients (weekend \u00d72) -->
           <div class="bg-white rounded-2xl border border-gray-200 p-4">
-            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Taux par heure (weekend ×2)</p>
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Taux par heure (weekend \u00d72)</p>
             <div class="grid grid-cols-2 gap-3 text-center">
               <div class="bg-gray-50 rounded-xl py-3">
                 <p class="text-[10px] text-gray-400 font-medium uppercase">Semaine</p>
-                <p class="font-bold text-gray-800 text-base mt-1">{{fmt2(tipsData.coefWkdy)}} €<span class="text-xs font-normal text-gray-400">/h</span></p>
+                <p class="font-bold text-gray-800 text-base mt-1">{{fmt2(tipsData.coefWkdy)}} \u20ac<span class="text-xs font-normal text-gray-400">/h</span></p>
               </div>
               <div class="bg-amber-50 rounded-xl py-3">
-                <p class="text-[10px] text-amber-600 font-medium uppercase">Weekend ×2</p>
-                <p class="font-bold text-amber-800 text-base mt-1">{{fmt2(tipsData.coefWknd)}} €<span class="text-xs font-normal text-amber-500">/h</span></p>
+                <p class="text-[10px] text-amber-600 font-medium uppercase">Weekend \u00d72</p>
+                <p class="font-bold text-amber-800 text-base mt-1">{{fmt2(tipsData.coefWknd)}} \u20ac<span class="text-xs font-normal text-amber-500">/h</span></p>
               </div>
             </div>
-            <p class="text-[11px] text-gray-400 text-center mt-2">Total pondéré : {{tipsData.totalW}}h · Total à distribuer : {{tipsData.total}} €</p>
+            <p class="text-[11px] text-gray-400 text-center mt-2">Total pond\u00e9r\u00e9 : {{tipsData.totalW}}h \u00b7 Total \u00e0 distribuer : {{tipsData.total}} \u20ac</p>
           </div>
 
           <!-- Per-employee breakdown -->
           <div v-if="tipsData.employees.length===0" class="bg-white rounded-2xl border border-gray-200 p-4 text-center text-sm text-gray-400">
-            Aucune heure travaillée ce mois — impossible de calculer le split.
+            Aucune heure travaill\u00e9e ce mois \u2014 impossible de calculer le split.
           </div>
           <div v-else class="space-y-2">
             <div class="flex items-center justify-between px-1">
               <p class="text-[11px] text-gray-400 font-medium">
-                Versés : {{tipsData.employees.filter(d=>tipPaid(d.emp.id)).length}} / {{tipsData.employees.length}}
+                Vers\u00e9s : {{tipsData.employees.filter(d=>tipPaid(d.emp.id)).length}} / {{tipsData.employees.length}}
               </p>
               <button v-if="canEdit||isPatron"
                 @click="setAllTipsPaid(tipsData.employees.filter(d=>tipPaid(d.emp.id)).length < tipsData.employees.length)"
                 class="text-[11px] font-semibold text-green-700 hover:underline">
-                {{tipsData.employees.filter(d=>tipPaid(d.emp.id)).length < tipsData.employees.length ? 'Tout marquer versé' : 'Tout décocher'}}
+                {{tipsData.employees.filter(d=>tipPaid(d.emp.id)).length < tipsData.employees.length ? 'Tout marquer vers\u00e9' : 'Tout d\u00e9cocher'}}
               </button>
             </div>
             <div v-for="d in tipsData.employees" :key="d.emp.id"
               class="rounded-2xl border p-4 flex items-center gap-3 transition-colors"
               :class="tipPaid(d.emp.id)?'bg-green-50 border-green-200':'bg-white border-gray-200'">
               <input type="checkbox" :disabled="!(canEdit||isPatron)" :checked="tipPaid(d.emp.id)"
-                @change="toggleTipPaid(d.emp.id,d.share)" title="Pourboires versés"
+                @change="toggleTipPaid(d.emp.id,d.share)" title="Pourboires vers\u00e9s"
                 class="w-5 h-5 flex-shrink-0 rounded accent-green-600 cursor-pointer"/>
               <span class="w-3 h-3 rounded-full flex-shrink-0" :class="empColor(d.emp.id).dot"></span>
               <div class="flex-1 min-w-0">
                 <p class="font-semibold text-sm" :class="tipPaid(d.emp.id)?'text-green-800':'text-gray-800'">{{d.emp.name}}</p>
-                <p v-if="tipPaid(d.emp.id)" class="text-[11px] text-green-600 font-medium mt-0.5">✓ Versé le {{fmtShort(tipPaidAt(d.emp.id))}}</p>
+                <p v-if="tipPaid(d.emp.id)" class="text-[11px] text-green-600 font-medium mt-0.5">\u2713 Vers\u00e9 le {{fmtShort(tipPaidAt(d.emp.id))}}</p>
                 <p v-else class="text-[11px] text-gray-400 mt-0.5"><span>{{d.wkdyH}}h sem.</span><span v-if="d.wkndH>0" class="ml-2 text-amber-600 font-medium">+ {{d.wkndH}}h WE</span><span class="ml-2 text-gray-500">= {{d.weighted}}h pond.</span></p>
               </div>
               <div class="text-right flex-shrink-0">
-                <p class="font-bold text-lg" :class="tipPaid(d.emp.id)?'text-green-600':'text-green-700'">{{fmt2(d.share)}} €</p>
+                <p class="font-bold text-lg" :class="tipPaid(d.emp.id)?'text-green-600':'text-green-700'">{{fmt2(d.share)}} \u20ac</p>
                 <p class="text-[10px] text-gray-400">{{Math.round(d.weighted/tipsData.totalW*100)}}%</p>
               </div>
             </div>
@@ -1899,13 +1899,13 @@ createApp({
           <!-- Total check -->
           <div class="bg-green-50 rounded-2xl border border-green-200 px-4 py-3 space-y-1">
             <div class="flex justify-between items-center">
-              <span class="text-sm font-semibold text-green-800">Total distribué</span>
-              <span class="font-bold text-green-700 text-lg">{{fmt2(tipsData.employees.reduce((s,d)=>s+d.share,0))}} €</span>
+              <span class="text-sm font-semibold text-green-800">Total distribu\u00e9</span>
+              <span class="font-bold text-green-700 text-lg">{{fmt2(tipsData.employees.reduce((s,d)=>s+d.share,0))}} \u20ac</span>
             </div>
             <div class="flex justify-between items-center">
-              <span class="text-xs font-medium text-green-700/70">Reste à verser</span>
+              <span class="text-xs font-medium text-green-700/70">Reste \u00e0 verser</span>
               <span class="font-semibold text-sm" :class="tipsData.employees.filter(d=>!tipPaid(d.emp.id)).length?'text-amber-700':'text-green-600'">
-                {{fmt2(tipsData.employees.filter(d=>!tipPaid(d.emp.id)).reduce((s,d)=>s+d.share,0))}} €
+                {{fmt2(tipsData.employees.filter(d=>!tipPaid(d.emp.id)).reduce((s,d)=>s+d.share,0))}} \u20ac
               </span>
             </div>
           </div>
@@ -1913,7 +1913,7 @@ createApp({
       </div>
     </div>
 
-    <!-- ════ ATELIERS ════ -->
+    <!-- \u2550\u2550\u2550\u2550 ATELIERS \u2550\u2550\u2550\u2550 -->
     <div v-else-if="view==='ateliers'" class="p-4 space-y-4">
       <!-- Header -->
       <div class="flex items-center justify-between">
@@ -1937,20 +1937,20 @@ createApp({
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 mb-1 flex-wrap">
               <span class="text-xs px-2 py-0.5 rounded-full font-semibold" :class="atTypeClr(a.type)">{{atTypeLabel(a.type)}}</span>
-              <span v-if="a.pending" class="text-xs px-2 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-800">⏳ À valider</span>
+              <span v-if="a.pending" class="text-xs px-2 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-800">\u23f3 \u00c0 valider</span>
             </div>
             <p class="font-semibold text-gray-800 text-sm">{{a.title}}</p>
-            <p class="text-xs text-gray-500 mt-0.5">{{fmtShort(a.date)}} · {{a.hours}}h</p>
+            <p class="text-xs text-gray-500 mt-0.5">{{fmtShort(a.date)}} \u00b7 {{a.hours}}h</p>
             <p class="text-xs mt-0.5 flex items-center gap-1.5">
               <span class="w-2 h-2 rounded-full flex-shrink-0" :class="empColor(a.employeeId).dot"></span>
-              <span class="text-gray-600">Animé par <b class="text-gray-800">{{empName(a.employeeId)}}</b></span>
+              <span class="text-gray-600">Anim\u00e9 par <b class="text-gray-800">{{empName(a.employeeId)}}</b></span>
             </p>
             <p v-if="a.note" class="text-xs text-gray-400 italic mt-0.5">"{{a.note}}"</p>
           </div>
           <div v-if="canAdmin||a.employeeId===user.id" class="flex gap-1 flex-shrink-0">
             <button v-if="canAdmin&&a.pending" @click="validateAt(a.id)" class="px-2 h-7 flex items-center justify-center rounded-xl bg-green-600 text-white text-xs font-semibold hover:bg-green-700">Valider</button>
-            <button @click="openEditAt(a)" class="w-7 h-7 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-gray-200 text-sm">✏️</button>
-            <button @click="deleteAt(a.id)" class="w-7 h-7 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-red-100 text-sm">🗑</button>
+            <button @click="openEditAt(a)" class="w-7 h-7 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-gray-200 text-sm">\u270f\ufe0f</button>
+            <button @click="deleteAt(a.id)" class="w-7 h-7 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-red-100 text-sm">\ud83d\uddd1</button>
           </div>
         </div>
       </div>
@@ -1962,26 +1962,26 @@ createApp({
       </div>
     </div>
 
-    <!-- ════ ADMIN ════ -->
+    <!-- \u2550\u2550\u2550\u2550 ADMIN \u2550\u2550\u2550\u2550 -->
     <div v-else-if="view==='admin'" class="p-4 space-y-4">
-      <!-- Mode démo -->
+      <!-- Mode d\u00e9mo -->
       <div class="bg-white rounded-2xl border border-gray-200 p-4 flex items-center gap-3">
         <div class="flex-1 min-w-0">
-          <p class="font-semibold text-gray-800 text-sm">Mode démo</p>
-          <p class="text-[11px] text-gray-400 mt-0.5">{{demoMode?'Activé : connexion sans mot de passe.':'Désactivé : plateforme officielle, mots de passe requis.'}}</p>
+          <p class="font-semibold text-gray-800 text-sm">Mode d\u00e9mo</p>
+          <p class="text-[11px] text-gray-400 mt-0.5">{{demoMode?'Activ\u00e9 : connexion sans mot de passe.':'D\u00e9sactiv\u00e9 : plateforme officielle, mots de passe requis.'}}</p>
         </div>
         <button @click="toggleDemo" class="relative w-12 h-7 rounded-full transition-colors flex-shrink-0" :class="demoMode?'bg-amber-500':'bg-gray-300'">
           <span class="absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-all" :class="demoMode?'left-[22px]':'left-0.5'"></span>
         </button>
       </div>
-      <!-- CP gagnés par mois -->
+      <!-- CP gagn\u00e9s par mois -->
       <div class="bg-white rounded-2xl border border-gray-200 p-4 space-y-3">
         <div>
-          <p class="font-semibold text-gray-800 text-sm">Acquisition CP par défaut</p>
-          <p class="text-[11px] text-gray-400 mt-0.5">Valeur appliquée aux employés sans taux personnalisé. Le taux de chacun se règle dans sa fiche.</p>
+          <p class="font-semibold text-gray-800 text-sm">Acquisition CP par d\u00e9faut</p>
+          <p class="text-[11px] text-gray-400 mt-0.5">Valeur appliqu\u00e9e aux employ\u00e9s sans taux personnalis\u00e9. Le taux de chacun se r\u00e8gle dans sa fiche.</p>
         </div>
         <div class="flex items-center gap-2">
-          <span class="text-xs text-gray-600 flex-1">CP gagnés / mois</span>
+          <span class="text-xs text-gray-600 flex-1">CP gagn\u00e9s / mois</span>
           <input v-model.number="cpPerMonth" @change="save()" type="number" min="0" step="0.5" class="w-16 border border-gray-200 rounded-xl px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-green-400"/>
           <span class="text-xs text-gray-400 w-10">j/mois</span>
         </div>
@@ -1989,15 +1989,15 @@ createApp({
       <!-- Limiter le planning -->
       <div class="bg-white rounded-2xl border border-gray-200 p-4 space-y-2">
         <p class="font-semibold text-gray-800 text-sm">Limiter le planning</p>
-        <p class="text-[11px] text-gray-400">Efface tous les shifts après la date choisie (ex. ne garder que jusqu'à fin juillet).</p>
+        <p class="text-[11px] text-gray-400">Efface tous les shifts apr\u00e8s la date choisie (ex. ne garder que jusqu'\u00e0 fin juillet).</p>
         <div class="flex items-center gap-2">
           <input v-model="purgeDate" type="date" class="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"/>
-          <button @click="purgeShiftsAfter" class="bg-red-50 text-red-600 border border-red-200 px-3 py-2 rounded-xl text-sm font-semibold whitespace-nowrap">Effacer après</button>
+          <button @click="purgeShiftsAfter" class="bg-red-50 text-red-600 border border-red-200 px-3 py-2 rounded-xl text-sm font-semibold whitespace-nowrap">Effacer apr\u00e8s</button>
         </div>
       </div>
       <div class="flex items-center justify-between">
-        <h2 class="font-semibold text-gray-800">Gestion des employés</h2>
-        <button v-if="canAdmin" @click="openNewEmp" class="bg-green-600 text-white text-xs px-4 py-2 rounded-xl font-semibold shadow-sm hover:bg-green-700">+ Nouvel employé</button>
+        <h2 class="font-semibold text-gray-800">Gestion des employ\u00e9s</h2>
+        <button v-if="canAdmin" @click="openNewEmp" class="bg-green-600 text-white text-xs px-4 py-2 rounded-xl font-semibold shadow-sm hover:bg-green-700">+ Nouvel employ\u00e9</button>
       </div>
       <div v-for="emp in users.filter(u=>u.role==='employee')" :key="emp.id" class="bg-white rounded-2xl border border-gray-200 p-4" :class="emp.active===false?'opacity-60':''">
         <div v-if="!editEmp||editEmp.id!==emp.id">
@@ -2008,22 +2008,22 @@ createApp({
             </div>
             <div v-if="canAdmin" class="flex items-center gap-1 flex-shrink-0">
               <button @click="startEdit(emp)" class="text-xs text-green-600 font-semibold px-2 py-1 rounded-lg hover:bg-green-50">Modifier</button>
-              <button @click="toggleAdmin(emp)" class="text-xs font-semibold px-2 py-1 rounded-lg" :class="emp.admin?'text-indigo-600 hover:bg-indigo-50':'text-gray-500 hover:bg-gray-100'" :title="emp.admin?'Retirer l\'accès manager':'Donner l\'accès manager'">{{emp.admin?'Manager ✓':'↑ Manager'}}</button>
-              <button @click="toggleActive(emp)" class="text-xs font-semibold px-2 py-1 rounded-lg" :class="emp.active===false?'text-green-600 hover:bg-green-50':'text-amber-600 hover:bg-amber-50'" :title="emp.active===false?'Réactiver':'Désactiver'">{{emp.active===false?'Réactiver':'Désactiver'}}</button>
-              <button @click="deleteEmp(emp)" class="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-100 text-sm" title="Supprimer définitivement">🗑</button>
+              <button @click="toggleAdmin(emp)" class="text-xs font-semibold px-2 py-1 rounded-lg" :class="emp.admin?'text-indigo-600 hover:bg-indigo-50':'text-gray-500 hover:bg-gray-100'" :title="emp.admin?'Retirer l\'acc\u00e8s manager':'Donner l\'acc\u00e8s manager'">{{emp.admin?'Manager \u2713':'\u2191 Manager'}}</button>
+              <button @click="toggleActive(emp)" class="text-xs font-semibold px-2 py-1 rounded-lg" :class="emp.active===false?'text-green-600 hover:bg-green-50':'text-amber-600 hover:bg-amber-50'" :title="emp.active===false?'R\u00e9activer':'D\u00e9sactiver'">{{emp.active===false?'R\u00e9activer':'D\u00e9sactiver'}}</button>
+              <button @click="deleteEmp(emp)" class="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-100 text-sm" title="Supprimer d\u00e9finitivement">\ud83d\uddd1</button>
             </div>
           </div>
           <div class="flex flex-wrap gap-1.5 mt-3">
-            <span class="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full font-medium">{{emp.role==='manager'?'Manager':'Employé'}}</span>
-            <span v-if="emp.admin" class="text-xs bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded-full font-semibold">👑 Accès manager</span>
+            <span class="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full font-medium">{{emp.role==='manager'?'Manager':'Employ\u00e9'}}</span>
+            <span v-if="emp.admin" class="text-xs bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded-full font-semibold">\ud83d\udc51 Acc\u00e8s manager</span>
             <span class="text-xs px-2.5 py-1 rounded-full font-medium" :class="contractClr(emp.contractType)">{{emp.contractType||'CDI'}}</span>
             <span class="text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full font-medium">{{emp.hoursPerWeek}}h/sem</span>
             <span class="text-xs bg-green-50 text-green-700 px-2.5 py-1 rounded-full font-medium">CP : {{emp.cpBalance}}j</span>
-            <span v-if="emp.hasAteliers" class="text-xs bg-orange-50 text-orange-700 px-2.5 py-1 rounded-full font-medium">🎓 Ateliers</span>
+            <span v-if="emp.hasAteliers" class="text-xs bg-orange-50 text-orange-700 px-2.5 py-1 rounded-full font-medium">\ud83c\udf93 Ateliers</span>
             <span v-for="r in (emp.jobRoles||[])" :key="r" class="text-xs bg-violet-50 text-violet-700 px-2.5 py-1 rounded-full font-medium">{{roleLabel(r)}}</span>
-            <span v-for="p in (emp.poles||[])" :key="'p'+p" class="text-xs bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full font-medium">📍 {{poleLabel(p)}}</span>
+            <span v-for="p in (emp.poles||[])" :key="'p'+p" class="text-xs bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full font-medium">\ud83d\udccd {{poleLabel(p)}}</span>
             <span v-if="emp.tipEligible===false" class="text-xs bg-gray-100 text-gray-500 px-2.5 py-1 rounded-full font-medium">Sans pourboires</span>
-            <span v-if="emp.active===false" class="text-xs bg-red-100 text-red-700 px-2.5 py-1 rounded-full font-semibold">Désactivé</span>
+            <span v-if="emp.active===false" class="text-xs bg-red-100 text-red-700 px-2.5 py-1 rounded-full font-semibold">D\u00e9sactiv\u00e9</span>
           </div>
         </div>
         <div v-else class="space-y-3">
@@ -2036,13 +2036,13 @@ createApp({
                 <option value="CDI">CDI</option><option value="CDD">CDD</option><option value="Freelance">Freelance</option><option value="Stage">Stage</option><option value="Alternance">Alternance</option>
               </select></div>
             <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Heures/sem</label><input v-model="empForm.hoursPerWeek" type="number" min="0" max="50" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
-            <div class="col-span-2"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Jours travaillés / sem (max CP/sem sur une plage)</label><input v-model="empForm.daysPerWeek" type="number" min="0" max="7" step="1" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
+            <div class="col-span-2"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Jours travaill\u00e9s / sem (max CP/sem sur une plage)</label><input v-model="empForm.daysPerWeek" type="number" min="0" max="7" step="1" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
             <div class="col-span-2"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Solde CP (jours)</label><input v-model="empForm.cpBalance" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
-            <div v-if="canSeeSalaries" class="col-span-2"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Taux horaire (€/h)</label><input v-model="empForm.wage" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
+            <div v-if="canSeeSalaries" class="col-span-2"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Taux horaire (\u20ac/h)</label><input v-model="empForm.wage" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
             <div class="col-span-2"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">CP acquis / mois</label><input v-model="empForm.cpRate" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
           </div>
           <div>
-            <label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Rôles (aucun = peut tout remplacer)</label>
+            <label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">R\u00f4les (aucun = peut tout remplacer)</label>
             <div class="flex flex-wrap gap-2">
               <button v-for="r in JOB_ROLES" :key="r.v" type="button" @click="toggleEmpRole(empForm,r.v)"
                 class="text-xs px-3 py-1.5 rounded-full font-semibold border transition-colors"
@@ -2052,7 +2052,7 @@ createApp({
             </div>
           </div>
           <div>
-            <label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Pôles (regroupement des rapports — cumulables)</label>
+            <label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">P\u00f4les (regroupement des rapports \u2014 cumulables)</label>
             <div class="flex flex-wrap gap-2">
               <button v-for="p in POLES" :key="p.v" type="button" @click="togglePole(empForm,p.v)"
                 class="text-xs px-3 py-1.5 rounded-full font-semibold border transition-colors"
@@ -2070,15 +2070,15 @@ createApp({
           </div>
           <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
             <input type="checkbox" v-model="empForm.hasAteliers" class="rounded"/>
-            <span>Accès Ateliers & Formations</span>
+            <span>Acc\u00e8s Ateliers & Formations</span>
           </label>
           <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
             <input type="checkbox" v-model="empForm.tipEligible" class="rounded"/>
-            <span>Éligible aux pourboires</span>
+            <span>\u00c9ligible aux pourboires</span>
           </label>
           <div class="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
-            <span class="text-xs text-gray-500 flex-1">Mot de passe : <b>{{empForm.password?'défini':'non défini'}}</b></span>
-            <button v-if="empForm.password" @click="empForm.password=null" class="text-xs text-red-500 font-semibold px-2 py-1 rounded-lg hover:bg-red-50">Réinitialiser</button>
+            <span class="text-xs text-gray-500 flex-1">Mot de passe : <b>{{empForm.password?'d\u00e9fini':'non d\u00e9fini'}}</b></span>
+            <button v-if="empForm.password" @click="empForm.password=null" class="text-xs text-red-500 font-semibold px-2 py-1 rounded-lg hover:bg-red-50">R\u00e9initialiser</button>
           </div>
           <div class="flex gap-2 pt-1">
             <button @click="cancelEdit" class="flex-1 bg-gray-100 text-gray-600 py-2.5 rounded-xl text-sm font-semibold">Annuler</button>
@@ -2088,11 +2088,11 @@ createApp({
       </div>
     </div>
 
-    <!-- ════ CORPO (Orianna) ════ -->
+    <!-- \u2550\u2550\u2550\u2550 CORPO (Orianna) \u2550\u2550\u2550\u2550 -->
     <div v-else-if="view==='corpo'" class="p-4 space-y-4">
       <div>
-        <h2 class="font-semibold text-gray-800">Corporianna 🌟</h2>
-        <p class="text-xs text-gray-400 mt-0.5">Heures corpo — comptées dans ton décompte de fin de mois</p>
+        <h2 class="font-semibold text-gray-800">Corporianna \ud83c\udf1f</h2>
+        <p class="text-xs text-gray-400 mt-0.5">Heures corpo \u2014 compt\u00e9es dans ton d\u00e9compte de fin de mois</p>
       </div>
       <!-- Month nav -->
       <div class="flex items-center justify-between">
@@ -2100,7 +2100,7 @@ createApp({
         <span class="text-sm font-semibold text-gray-700">{{corpoLabel}}</span>
         <button @click="nextCorpo" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200"><svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></button>
       </div>
-      <button @click="prefillCorpoTuesdays" class="w-full bg-pink-500 text-white text-xs px-3 py-2.5 rounded-xl font-semibold hover:bg-pink-600">Pré-remplir les mardis (9h30–18h30)</button>
+      <button @click="prefillCorpoTuesdays" class="w-full bg-pink-500 text-white text-xs px-3 py-2.5 rounded-xl font-semibold hover:bg-pink-600">Pr\u00e9-remplir les mardis (9h30\u201318h30)</button>
       <div class="bg-white rounded-2xl border border-gray-200 p-3 flex items-end gap-2">
         <div class="flex-1">
           <label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Ajouter une date</label>
@@ -2115,12 +2115,12 @@ createApp({
           <p class="text-sm font-semibold text-gray-800 capitalize">{{fmtLong(c.date)}}</p>
           <div class="flex items-center gap-1.5 mt-1">
             <input v-model="c.start" @change="updateCorpo(c)" type="time" class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-pink-400"/>
-            <span class="text-gray-400 text-xs">→</span>
+            <span class="text-gray-400 text-xs">\u2192</span>
             <input v-model="c.end" @change="updateCorpo(c)" type="time" class="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-pink-400"/>
             <span class="text-[11px] text-gray-400 ml-1">{{hrs(c.start,c.end)}}h</span>
           </div>
         </div>
-        <button @click="deleteCorpo(c.id)" class="w-7 h-7 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-red-100 text-sm">🗑</button>
+        <button @click="deleteCorpo(c.id)" class="w-7 h-7 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-red-100 text-sm">\ud83d\uddd1</button>
       </div>
 
       <div v-if="corpoList.length>0" class="bg-pink-50 rounded-2xl border border-pink-200 px-4 py-3 flex justify-between items-center">
@@ -2151,7 +2151,7 @@ createApp({
       <span class="text-[10px] font-semibold">Ateliers</span>
     </button>
     <button v-if="isCorpo" @click="goTo('corpo')" class="flex-1 flex flex-col items-center py-2.5 gap-0.5 transition-colors" :class="view==='corpo'?'text-pink-500':'text-gray-400'">
-      <span class="text-lg leading-none">🌟</span>
+      <span class="text-lg leading-none">\ud83c\udf1f</span>
       <span class="text-[10px] font-semibold">Corpo</span>
     </button>
     <button v-if="canAdmin" @click="goTo('admin')" class="flex-1 flex flex-col items-center py-2.5 gap-0.5 transition-colors" :class="view==='admin'?'text-green-600':'text-gray-400'">
@@ -2165,21 +2165,21 @@ createApp({
     <div class="modal-enter bg-white w-full rounded-t-3xl p-5 max-h-[85vh] flex flex-col" style="max-width:480px;margin:0 auto">
       <div class="flex items-center justify-between mb-4 flex-shrink-0">
         <h3 class="font-bold text-gray-800 capitalize text-sm">{{fmtLong(dayDate)}}</h3>
-        <button @click="closeDay" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 font-bold">✕</button>
+        <button @click="closeDay" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 font-bold">\u2715</button>
       </div>
       <div class="overflow-y-auto flex-1 space-y-2.5 mb-4">
-        <div v-if="dayShifts.length===0" class="text-center py-8 text-gray-400 text-sm">Aucun shift ce jour-là</div>
+        <div v-if="dayShifts.length===0" class="text-center py-8 text-gray-400 text-sm">Aucun shift ce jour-l\u00e0</div>
         <div v-for="s in dayShifts" :key="s.id" class="flex items-center justify-between p-3 rounded-2xl" :class="empColor(s.employeeId).bg">
           <div class="flex items-center gap-3">
             <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" :class="[empColor(s.employeeId).bg,empColor(s.employeeId).text]" style="filter:brightness(.88)">{{empName(s.employeeId)[0]}}</div>
             <div>
               <p class="text-sm font-semibold" :class="empColor(s.employeeId).text">{{empName(s.employeeId)}}</p>
-              <p class="text-xs text-gray-500">{{s.start}} – {{s.end}}</p>
+              <p class="text-xs text-gray-500">{{s.start}} \u2013 {{s.end}}</p>
             </div>
           </div>
           <div v-if="canEdit" class="flex gap-1">
-            <button @click="openEditShift(s)" class="w-7 h-7 flex items-center justify-center rounded-xl bg-white/70 hover:bg-white text-sm">✏️</button>
-            <button @click="deleteShift(s.id)" class="w-7 h-7 flex items-center justify-center rounded-xl bg-white/70 hover:bg-white text-sm">🗑</button>
+            <button @click="openEditShift(s)" class="w-7 h-7 flex items-center justify-center rounded-xl bg-white/70 hover:bg-white text-sm">\u270f\ufe0f</button>
+            <button @click="deleteShift(s.id)" class="w-7 h-7 flex items-center justify-center rounded-xl bg-white/70 hover:bg-white text-sm">\ud83d\uddd1</button>
           </div>
         </div>
       </div>
@@ -2192,23 +2192,23 @@ createApp({
     <div class="modal-enter bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl">
       <div class="flex items-center justify-between mb-4">
         <h3 class="font-bold text-gray-800">{{editShift?'Modifier le shift':'Nouveau shift'}}</h3>
-        <button @click="showShift=false" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 font-bold">✕</button>
+        <button @click="showShift=false" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 font-bold">\u2715</button>
       </div>
       <div class="space-y-3">
-        <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Employé</label>
+        <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Employ\u00e9</label>
           <select v-model="shiftForm.employeeId" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
             <option v-for="emp in employees" :key="emp.id" :value="emp.id">{{emp.name}}<span v-if="rolesLabel(emp.id)"> ({{rolesLabel(emp.id)}})</span></option>
           </select></div>
-        <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Rôle requis (pour un remplacement)</label>
+        <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">R\u00f4le requis (pour un remplacement)</label>
           <select v-model="shiftForm.roleReq" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
-            <option value="">— aucun (ouvert à tous) —</option>
+            <option value="">\u2014 aucun (ouvert \u00e0 tous) \u2014</option>
             <option v-for="r in JOB_ROLES" :key="r.v" :value="r.v">{{r.l}}</option>
           </select>
-          <p class="text-[11px] text-gray-400 mt-1">Si un rôle est choisi, seuls les collègues ayant ce rôle pourront reprendre ce shift.</p></div>
+          <p class="text-[11px] text-gray-400 mt-1">Si un r\u00f4le est choisi, seuls les coll\u00e8gues ayant ce r\u00f4le pourront reprendre ce shift.</p></div>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Date</label>
           <input v-model="shiftForm.date" type="date" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
         <div class="grid grid-cols-2 gap-3">
-          <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Début</label><input v-model="shiftForm.start" type="time" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
+          <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">D\u00e9but</label><input v-model="shiftForm.start" type="time" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
           <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Fin</label><input v-model="shiftForm.end" type="time" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
         </div>
       </div>
@@ -2224,7 +2224,7 @@ createApp({
     <div class="modal-enter bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl">
       <div class="flex items-center justify-between mb-4">
         <h3 class="font-bold text-gray-800">Demande d'absence</h3>
-        <button @click="showLeave=false" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 font-bold">✕</button>
+        <button @click="showLeave=false" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 font-bold">\u2715</button>
       </div>
       <div class="space-y-3">
         <div class="grid grid-cols-2 gap-3">
@@ -2233,10 +2233,10 @@ createApp({
         </div>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Type</label>
           <select v-model="leaveForm.type" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
-            <option value="CP">Congé payé (CP)</option><option value="maladie">Arrêt maladie</option>
+            <option value="CP">Cong\u00e9 pay\u00e9 (CP)</option><option value="maladie">Arr\u00eat maladie</option>
           </select></div>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Note (optionnel)</label>
-          <textarea v-model="leaveForm.note" rows="2" placeholder="Ex : rendez-vous médical" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none"></textarea></div>
+          <textarea v-model="leaveForm.note" rows="2" placeholder="Ex : rendez-vous m\u00e9dical" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none"></textarea></div>
       </div>
       <div class="flex gap-3 mt-5">
         <button @click="showLeave=false" class="flex-1 bg-gray-100 text-gray-600 py-3 rounded-2xl text-sm font-semibold">Annuler</button>
@@ -2250,7 +2250,7 @@ createApp({
     <div class="modal-enter bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl">
       <div class="flex items-center justify-between mb-4">
         <h3 class="font-bold text-gray-800">Proposer une suggestion</h3>
-        <button @click="showSugg=false" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 font-bold">✕</button>
+        <button @click="showSugg=false" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 font-bold">\u2715</button>
       </div>
       <div class="space-y-3">
         <div class="flex gap-1 bg-gray-100 p-1 rounded-xl">
@@ -2261,12 +2261,12 @@ createApp({
         <template v-if="suggForm.kind==='shift'">
           <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Mon shift</label>
             <select v-model="suggForm.shiftId" @change="onSuggShiftPick" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
-              <option value="">— choisir un shift —</option>
-              <option v-for="s in myShiftsForSugg" :key="s.id" :value="s.id">{{fmtShort(s.date)}} · {{s.start}}–{{s.end}}{{s.date<todayStr()?' (passé)':''}}</option>
+              <option value="">\u2014 choisir un shift \u2014</option>
+              <option v-for="s in myShiftsForSugg" :key="s.id" :value="s.id">{{fmtShort(s.date)}} \u00b7 {{s.start}}\u2013{{s.end}}{{s.date<todayStr()?' (pass\u00e9)':''}}</option>
             </select></div>
-          <div v-if="myShiftsForSugg.length===0" class="text-xs text-gray-400">Aucun shift à ajuster (à venir ou récent).</div>
+          <div v-if="myShiftsForSugg.length===0" class="text-xs text-gray-400">Aucun shift \u00e0 ajuster (\u00e0 venir ou r\u00e9cent).</div>
           <div class="grid grid-cols-2 gap-3">
-            <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Nouveau début</label><input v-model="suggForm.start" type="time" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
+            <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Nouveau d\u00e9but</label><input v-model="suggForm.start" type="time" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
             <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Nouvelle fin</label><input v-model="suggForm.end" type="time" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
           </div>
         </template>
@@ -2275,14 +2275,14 @@ createApp({
           <div class="grid grid-cols-2 gap-3">
             <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Type</label>
               <select v-model="suggForm.atelierType" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
-                <option value="atelier">Atelier client</option><option value="formation">Formation équipe</option><option value="autre">Autre</option>
+                <option value="atelier">Atelier client</option><option value="formation">Formation \u00e9quipe</option><option value="autre">Autre</option>
               </select></div>
             <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Date</label>
               <input v-model="suggForm.date" type="date" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
           </div>
           <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Titre</label>
             <input v-model="suggForm.title" type="text" placeholder="Ex : Atelier latte art" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
-          <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Durée (heures)</label>
+          <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Dur\u00e9e (heures)</label>
             <input v-model="suggForm.hours" type="number" min="0.5" step="0.5" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
         </template>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Note (optionnel)</label>
@@ -2300,13 +2300,13 @@ createApp({
     <div class="modal-enter bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl">
       <div class="flex items-center justify-between mb-4">
         <h3 class="font-bold text-gray-800">{{editAt?'Modifier':'Nouvel atelier / formation'}}</h3>
-        <button @click="showAtForm=false" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 font-bold">✕</button>
+        <button @click="showAtForm=false" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 font-bold">\u2715</button>
       </div>
       <div class="space-y-3">
         <div class="grid grid-cols-2 gap-3">
           <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Type</label>
             <select v-model="atForm.type" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
-              <option value="atelier">Atelier client</option><option value="formation">Formation équipe</option><option value="autre">Autre</option>
+              <option value="atelier">Atelier client</option><option value="formation">Formation \u00e9quipe</option><option value="autre">Autre</option>
             </select></div>
           <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Date</label>
             <input v-model="atForm.date" type="date" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"/></div>
@@ -2314,13 +2314,13 @@ createApp({
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Titre</label>
           <input v-model="atForm.title" type="text" placeholder="Ex : Atelier latte art" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"/></div>
         <div class="grid grid-cols-2 gap-3">
-          <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Durée (heures)</label>
+          <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Dur\u00e9e (heures)</label>
             <input v-model="atForm.hours" type="number" min="0.5" step="0.5" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"/></div>
           <div v-if="canAdmin"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Qui anime ?</label>
             <select v-model="atForm.employeeId" class="w-full border bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
               :class="atForm.employeeId?'border-gray-200':'border-orange-300'">
-              <option value="">— choisir l'animateur —</option>
-              <option v-for="emp in animatorChoices" :key="emp.id" :value="emp.id">{{emp.name}}<span v-if="(emp.jobRoles||[]).includes('animateur')"> ⭐</span></option>
+              <option value="">\u2014 choisir l'animateur \u2014</option>
+              <option v-for="emp in animatorChoices" :key="emp.id" :value="emp.id">{{emp.name}}<span v-if="(emp.jobRoles||[]).includes('animateur')"> \u2b50</span></option>
             </select></div>
         </div>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Note (optionnel)</label>
@@ -2337,11 +2337,11 @@ createApp({
   <div v-if="showNewEmp" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
     <div class="modal-enter bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="font-bold text-gray-800">Nouvel employé</h3>
-        <button @click="showNewEmp=false" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 font-bold">✕</button>
+        <h3 class="font-bold text-gray-800">Nouvel employ\u00e9</h3>
+        <button @click="showNewEmp=false" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 font-bold">\u2715</button>
       </div>
       <div class="grid grid-cols-2 gap-3">
-        <div class="col-span-2"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Nom</label><input v-model="newEmp.name" placeholder="Prénom" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
+        <div class="col-span-2"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Nom</label><input v-model="newEmp.name" placeholder="Pr\u00e9nom" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
         <div class="col-span-2"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Email</label><input v-model="newEmp.email" type="email" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Contrat</label>
           <select v-model="newEmp.contractType" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
@@ -2349,12 +2349,12 @@ createApp({
           </select></div>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Heures/sem</label><input v-model="newEmp.hoursPerWeek" type="number" min="0" max="50" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Jours/sem</label><input v-model="newEmp.daysPerWeek" type="number" min="0" max="7" step="1" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
-        <div v-if="canSeeSalaries"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Taux horaire (€/h)</label><input v-model="newEmp.wage" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
+        <div v-if="canSeeSalaries"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Taux horaire (\u20ac/h)</label><input v-model="newEmp.wage" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Solde CP</label><input v-model="newEmp.cpBalance" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">CP / mois</label><input v-model="newEmp.cpRate" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
       </div>
       <div class="mt-3">
-        <label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Rôles (aucun = peut tout remplacer)</label>
+        <label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">R\u00f4les (aucun = peut tout remplacer)</label>
         <div class="flex flex-wrap gap-2">
           <button v-for="r in JOB_ROLES" :key="r.v" type="button" @click="toggleEmpRole(newEmp,r.v)"
             class="text-xs px-3 py-1.5 rounded-full font-semibold border transition-colors"
@@ -2364,7 +2364,7 @@ createApp({
         </div>
       </div>
       <div class="mt-3">
-        <label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Pôles (regroupement rapports — cumulables)</label>
+        <label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">P\u00f4les (regroupement rapports \u2014 cumulables)</label>
         <div class="flex flex-wrap gap-2">
           <button v-for="p in POLES" :key="p.v" type="button" @click="togglePole(newEmp,p.v)"
             class="text-xs px-3 py-1.5 rounded-full font-semibold border transition-colors"
@@ -2381,14 +2381,14 @@ createApp({
         </div>
       </div>
       <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer mt-3">
-        <input type="checkbox" v-model="newEmp.hasAteliers" class="rounded"/><span>Accès Ateliers &amp; Formations</span>
+        <input type="checkbox" v-model="newEmp.hasAteliers" class="rounded"/><span>Acc\u00e8s Ateliers &amp; Formations</span>
       </label>
       <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer mt-2">
-        <input type="checkbox" v-model="newEmp.tipEligible" class="rounded"/><span>Éligible aux pourboires</span>
+        <input type="checkbox" v-model="newEmp.tipEligible" class="rounded"/><span>\u00c9ligible aux pourboires</span>
       </label>
       <div class="flex gap-3 mt-5">
         <button @click="showNewEmp=false" class="flex-1 bg-gray-100 text-gray-600 py-3 rounded-2xl text-sm font-semibold">Annuler</button>
-        <button @click="createEmp" class="flex-1 bg-green-600 text-white py-3 rounded-2xl text-sm font-semibold hover:bg-green-700 shadow-sm">Créer</button>
+        <button @click="createEmp" class="flex-1 bg-green-600 text-white py-3 rounded-2xl text-sm font-semibold hover:bg-green-700 shadow-sm">Cr\u00e9er</button>
       </div>
     </div>
   </div>
@@ -2396,11 +2396,11 @@ createApp({
   <!-- WHATSAPP MODAL -->
   <div v-if="showWA" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
     <div class="modal-enter bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl">
-      <div class="flex items-center gap-2 mb-3"><span class="text-2xl">📱</span><h3 class="font-bold text-gray-800">Message WhatsApp</h3></div>
+      <div class="flex items-center gap-2 mb-3"><span class="text-2xl">\ud83d\udcf1</span><h3 class="font-bold text-gray-800">Message WhatsApp</h3></div>
       <textarea readonly rows="5" class="w-full border border-gray-200 bg-gray-50 rounded-2xl p-3 text-sm text-gray-700 resize-none focus:outline-none">{{waMsg}}</textarea>
       <div class="flex gap-3 mt-4">
         <button @click="showWA=false" class="flex-1 bg-gray-100 text-gray-600 py-3 rounded-2xl text-sm font-semibold">Fermer</button>
-        <button @click="copyWA"       class="flex-1 bg-green-600 text-white py-3 rounded-2xl text-sm font-semibold hover:bg-green-700 shadow-sm">📋 Copier</button>
+        <button @click="copyWA"       class="flex-1 bg-green-600 text-white py-3 rounded-2xl text-sm font-semibold hover:bg-green-700 shadow-sm">\ud83d\udccb Copier</button>
       </div>
     </div>
   </div>
