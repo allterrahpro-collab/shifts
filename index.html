@@ -2008,7 +2008,7 @@ createApp({
             </div>
             <div v-if="canAdmin" class="flex items-center gap-1 flex-shrink-0">
               <button @click="startEdit(emp)" class="text-xs text-green-600 font-semibold px-2 py-1 rounded-lg hover:bg-green-50">Modifier</button>
-              <button @click="toggleAdmin(emp)" class="text-xs font-semibold px-2 py-1 rounded-lg" :class="emp.admin?'text-indigo-600 hover:bg-indigo-50':'text-gray-500 hover:bg-gray-100'" :title="emp.admin?'Retirer l\'acc\u00e8s manager':'Donner l\'acc\u00e8s manager'">{{emp.admin?'Manager \u2713':'\u2191 Manager'}}</button>
+              <button @click="toggleAdmin(emp)" class="text-xs font-semibold px-2 py-1 rounded-lg" :class="emp.admin?'text-indigo-600 hover:bg-indigo-50':'text-gray-500 hover:bg-gray-100'" :title="emp.admin?'Retirer acc\u00e8s manager':'Donner acc\u00e8s manager'">{{emp.admin?'Manager \u2713':'\u2191 Manager'}}</button>
               <button @click="toggleActive(emp)" class="text-xs font-semibold px-2 py-1 rounded-lg" :class="emp.active===false?'text-green-600 hover:bg-green-50':'text-amber-600 hover:bg-amber-50'" :title="emp.active===false?'R\u00e9activer':'D\u00e9sactiver'">{{emp.active===false?'R\u00e9activer':'D\u00e9sactiver'}}</button>
               <button @click="deleteEmp(emp)" class="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-100 text-sm" title="Supprimer d\u00e9finitivement">\ud83d\uddd1</button>
             </div>
