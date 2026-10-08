@@ -264,8 +264,9 @@ createApp({
     isManager() {return this.user?.role==='manager';},
     isPatron()  {return this.user?.role==='patron';},
     isEmployee(){return this.user?.role==='employee';},
-    canEdit()   {return this.isManager;},
-    canAdmin()  {return this.isManager||this.isPatron;},
+    canEdit()   {return this.isManager||!!this.user?.admin;},
+    canAdmin()  {return this.isManager||this.isPatron||!!this.user?.admin;},
+    canSeeSalaries(){return this.isManager||this.isPatron;},   // salaires réservés à toi (manager) + Julien (patron) — pas aux managers nommés
     isCorpo()   {return this.user?.id==='orianna';},
     firstLogin(){if(this.demoMode)return false;const id=(this.loginForm.username||'').toLowerCase().trim();const u=this.users.find(x=>x.id===id);return !!u&&!u.password;},
     canUndo()   {return this.histIdx>0;},
@@ -414,7 +415,7 @@ createApp({
     // ─── Reports: hours ───
     reportData(){
       const{repYear:y,repMonth:m}=this;
-      const pool=this.isEmployee?this.employees.filter(e=>e.id===this.user.id):this.employees;
+      const pool=this.canAdmin?this.employees:this.employees.filter(e=>e.id===this.user.id);
       return pool.map(emp=>{
         const ws=this.shifts.filter(s=>{const d=new Date(s.date);return s.employeeId===emp.id&&d.getFullYear()===y&&d.getMonth()===m;});
         const shiftH=ws.reduce((s,x)=>s+diffH(x.start,x.end),0);
@@ -479,7 +480,7 @@ createApp({
     filteredAteliers(){
       const{atYear:y,atMonth:m}=this;
       let list=this.ateliers.filter(a=>{const d=new Date(a.date);return d.getFullYear()===y&&d.getMonth()===m;});
-      if(this.isEmployee) list=list.filter(a=>a.employeeId===this.user?.id);
+      if(!this.canAdmin) list=list.filter(a=>a.employeeId===this.user?.id);
       return list.sort((a,b)=>a.date.localeCompare(b.date));
     },
     atLabel(){const{atYear:y,atMonth:m}=this;return MONTHS[m]+' '+y;},
@@ -1208,6 +1209,17 @@ createApp({
       if(this.editEmp&&this.editEmp.id===emp.id)this.editEmp=null;
       this.commit();
     },
+    // Donner / retirer l'accès manager (droits complets comme toi, SANS les salaires). La personne reste dans le planning.
+    toggleAdmin(emp){
+      const i=this.users.findIndex(u=>u.id===emp.id);if(i<0)return;
+      const willGive=!this.users[i].admin;
+      if(!confirm(willGive
+        ? 'Donner l\'accès manager à '+emp.name+' ?\nIl/elle pourra tout faire comme toi (planning, congés, remplacements, ateliers, pourboires, gestion des employés) SAUF voir les salaires. Il/elle reste dans le planning.'
+        : 'Retirer l\'accès manager à '+emp.name+' ?'))return;
+      this.users[i]={...this.users[i],admin:willGive};
+      if(this.user&&this.user.id===emp.id)this.user=this.users[i];   // garde la session à jour
+      this.commit();
+    },
     deleteEmp(emp){
       if(!confirm('Supprimer '+emp.name+' ?\nSes shifts et heures corpo seront aussi retirés. (annulable par Ctrl+Z)'))return;
       this.users=this.users.filter(u=>u.id!==emp.id);
@@ -1254,16 +1266,16 @@ createApp({
     nextAt(){if(this.atMonth===11){this.atMonth=0;this.atYear++;}else this.atMonth++;},
     openAtForm(){
       this.editAt=null;
-      const who=this.isEmployee?this.user.id:'';   // admin : choix explicite de l'animateur à chaque fois
+      const who=this.canAdmin?'':this.user.id;   // admin : choix explicite de l'animateur à chaque fois
       this.atForm={employeeId:who,date:todayStr(),title:'',hours:2,type:'atelier',note:''};
       this.showAtForm=true;
     },
     openEditAt(a){this.editAt=a;this.atForm={...a};this.showAtForm=true;},
     saveAt(){
       if(!this.atForm.title||!this.atForm.date)return;
-      if(this.isEmployee)this.atForm.employeeId=this.user.id;   // un employé ne crée que pour lui-même
+      if(!this.canAdmin)this.atForm.employeeId=this.user.id;   // un employé non-admin ne crée que pour lui-même
       if(!this.atForm.employeeId){alert('Indique qui anime cet atelier.');return;}
-      const pend=this.isEmployee;   // saisie employé = à valider par Dan/Julien ; saisie admin = direct
+      const pend=!this.canAdmin;   // saisie employé = à valider ; saisie admin/manager = direct
       if(this.editAt){const i=this.ateliers.findIndex(a=>a.id===this.editAt.id);if(i>=0)this.ateliers[i]={...this.ateliers[i],...this.atForm,hours:+this.atForm.hours,pending:pend};}
       else this.ateliers.push({id:uid(),...this.atForm,hours:+this.atForm.hours,pending:pend});
       if(pend)this.notify('dan',`🎓 ${this.user.name} a ajouté un atelier à valider : « ${this.atForm.title} » le ${fmtShort(this.atForm.date)}.`);
@@ -1536,7 +1548,7 @@ createApp({
           <button @click="exportICS(false)" class="bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-semibold">Mon .ics</button>
           <button v-if="canAdmin" @click="exportICS(true)" class="bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-semibold">Équipe .ics</button>
           <span v-if="canAdmin" class="text-gray-300">|</span>
-          <span v-if="canAdmin" class="text-[11px] text-gray-500 font-medium">Coût sem. : <b class="text-gray-800">{{weekCost}} €</b></span>
+          <span v-if="canSeeSalaries" class="text-[11px] text-gray-500 font-medium">Coût sem. : <b class="text-gray-800">{{weekCost}} €</b></span>
         </div>
         <!-- Compteurs hebdo par employé : heures vs contrat -->
         <div v-if="weekSummary.length" class="bg-white border-b border-gray-100 px-3 py-2 flex gap-2 overflow-x-auto whitespace-nowrap">
@@ -1798,11 +1810,11 @@ createApp({
           <div class="flex flex-wrap gap-1.5 pt-1">
             <span class="text-xs px-2.5 py-1 rounded-full font-medium" :class="row.emp.cpBalance<0?'bg-red-50 text-red-600':'bg-green-50 text-green-700'">CP restants : {{row.emp.cpBalance}}j<span v-if="row.emp.cpBalance<0"> (en avance)</span></span>
             <span class="text-xs bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full font-medium" :title="row.malDates.length?dayList(row.malDates):''">Maladie : {{row.malCount}}j</span>
-            <span v-if="canAdmin" class="text-xs bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full font-medium">Coût : {{row.cost}} €</span>
+            <span v-if="canSeeSalaries" class="text-xs bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full font-medium">Coût : {{row.cost}} €</span>
           </div>
         </div>
         </template>
-        <div v-if="canAdmin&&reportData.length" class="bg-slate-800 rounded-2xl px-4 py-3 flex justify-between items-center">
+        <div v-if="canSeeSalaries&&reportData.length" class="bg-slate-800 rounded-2xl px-4 py-3 flex justify-between items-center">
           <span class="text-sm font-semibold text-white">Coût masse salariale du mois</span>
           <span class="font-bold text-white text-lg">{{reportData.reduce((s,r)=>s+r.cost,0)}} €</span>
         </div>
@@ -1996,12 +2008,14 @@ createApp({
             </div>
             <div v-if="canAdmin" class="flex items-center gap-1 flex-shrink-0">
               <button @click="startEdit(emp)" class="text-xs text-green-600 font-semibold px-2 py-1 rounded-lg hover:bg-green-50">Modifier</button>
+              <button @click="toggleAdmin(emp)" class="text-xs font-semibold px-2 py-1 rounded-lg" :class="emp.admin?'text-indigo-600 hover:bg-indigo-50':'text-gray-500 hover:bg-gray-100'" :title="emp.admin?'Retirer l\'accès manager':'Donner l\'accès manager'">{{emp.admin?'Manager ✓':'↑ Manager'}}</button>
               <button @click="toggleActive(emp)" class="text-xs font-semibold px-2 py-1 rounded-lg" :class="emp.active===false?'text-green-600 hover:bg-green-50':'text-amber-600 hover:bg-amber-50'" :title="emp.active===false?'Réactiver':'Désactiver'">{{emp.active===false?'Réactiver':'Désactiver'}}</button>
               <button @click="deleteEmp(emp)" class="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-100 text-sm" title="Supprimer définitivement">🗑</button>
             </div>
           </div>
           <div class="flex flex-wrap gap-1.5 mt-3">
             <span class="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full font-medium">{{emp.role==='manager'?'Manager':'Employé'}}</span>
+            <span v-if="emp.admin" class="text-xs bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded-full font-semibold">👑 Accès manager</span>
             <span class="text-xs px-2.5 py-1 rounded-full font-medium" :class="contractClr(emp.contractType)">{{emp.contractType||'CDI'}}</span>
             <span class="text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full font-medium">{{emp.hoursPerWeek}}h/sem</span>
             <span class="text-xs bg-green-50 text-green-700 px-2.5 py-1 rounded-full font-medium">CP : {{emp.cpBalance}}j</span>
@@ -2024,7 +2038,7 @@ createApp({
             <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Heures/sem</label><input v-model="empForm.hoursPerWeek" type="number" min="0" max="50" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
             <div class="col-span-2"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Jours travaillés / sem (max CP/sem sur une plage)</label><input v-model="empForm.daysPerWeek" type="number" min="0" max="7" step="1" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
             <div class="col-span-2"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Solde CP (jours)</label><input v-model="empForm.cpBalance" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
-            <div class="col-span-2"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Taux horaire (€/h)</label><input v-model="empForm.wage" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
+            <div v-if="canSeeSalaries" class="col-span-2"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Taux horaire (€/h)</label><input v-model="empForm.wage" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
             <div class="col-span-2"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">CP acquis / mois</label><input v-model="empForm.cpRate" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
           </div>
           <div>
@@ -2335,7 +2349,7 @@ createApp({
           </select></div>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Heures/sem</label><input v-model="newEmp.hoursPerWeek" type="number" min="0" max="50" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Jours/sem</label><input v-model="newEmp.daysPerWeek" type="number" min="0" max="7" step="1" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
-        <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Taux horaire (€/h)</label><input v-model="newEmp.wage" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
+        <div v-if="canSeeSalaries"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Taux horaire (€/h)</label><input v-model="newEmp.wage" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Solde CP</label><input v-model="newEmp.cpBalance" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">CP / mois</label><input v-model="newEmp.cpRate" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
       </div>
