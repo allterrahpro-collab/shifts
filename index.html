@@ -859,7 +859,7 @@ createApp({
           +'UID:'+s.id+'@coffeeshift\r\n'
           +'DTSTART:'+dt(s.date,s.start)+'\r\n'
           +'DTEND:'+dt(s.date,s.end)+'\r\n'
-          +'SUMMARY:'+esc('Shift '+this.empName(s.employeeId))+'\r\n'
+          +'SUMMARY:'+esc(this.empName(s.employeeId)+' @ terrah')+'\r\n'
           +'END:VEVENT\r\n';
       });
       ics+='END:VCALENDAR';
@@ -871,9 +871,10 @@ createApp({
     // Lien d'abonnement (calendrier qui se met \u00e0 jour tout seul, via l'Edge Function Supabase)
     subscribeCal(all){
       const u=all?'all':this.user.id;
-      const url=SUPA_URL+'/functions/v1/calendar?emp='+u;
-      try{navigator.clipboard&&navigator.clipboard.writeText(url);}catch(e){}
-      prompt('Lien d\'abonnement (copi\u00e9) \u2014 \u00e0 ajouter dans ton agenda via \u00ab S\'abonner \u00e0 un calendrier par URL \u00bb :',url);
+      const httpsUrl=SUPA_URL+'/functions/v1/calendar?emp='+u;
+      const webcal=httpsUrl.replace(/^https?:\/\//,'webcal://');   // ouvre l'app Agenda du t\u00e9l\u00e9phone en mode \u00ab s'abonner \u00bb
+      try{navigator.clipboard&&navigator.clipboard.writeText(httpsUrl);}catch(e){}   // copie de secours
+      window.location.href=webcal;
     },
 
     // \u2500\u2500 Keyboard \u2500\u2500
@@ -1003,7 +1004,7 @@ createApp({
           ? `Salut ! ${this.user.name} cherche des rempla\u00e7ants :\n`+waLines.join('\n')
           : `Salut ! ${this.user.name} cherche un rempla\u00e7ant :\n`+waLines[0])
           +`\n\nMerci de r\u00e9pondre sur CoffeeShift \u2615`;
-        this.showWA=true;
+        this.shareWA();
       }
       this.commit();this.showLeave=false;
     },
@@ -1371,6 +1372,14 @@ createApp({
     atTypeLabel(t){return{atelier:'Atelier client',formation:'Formation \u00e9quipe',autre:'Autre'}[t]||t;},
     atTypeClr(t){return{atelier:'bg-orange-50 text-orange-700',formation:'bg-blue-50 text-blue-700',autre:'bg-gray-100 text-gray-600'}[t]||'bg-gray-100 text-gray-600';},
     copyWA(){navigator.clipboard.writeText(this.waMsg).then(()=>alert('Copi\u00e9 !'));},
+    // Ouvre la feuille de partage native du t\u00e9l\u00e9phone (l'employ\u00e9 choisit WhatsApp, SMS\u2026). Sinon, affiche le modal copier.
+    shareWA(){
+      if(navigator.share){
+        navigator.share({text:this.waMsg}).catch(()=>{this.showWA=true;});
+      } else {
+        this.showWA=true;
+      }
+    },
     fmt2(n){return(+n).toFixed(2);},
     // Liste compacte de jours : \u00ab 5, 12 et 18 juin \u00bb (regroupe le mois si commun)
     dayList(dates){
@@ -2407,7 +2416,8 @@ createApp({
       <textarea readonly rows="5" class="w-full border border-gray-200 bg-gray-50 rounded-2xl p-3 text-sm text-gray-700 resize-none focus:outline-none">{{waMsg}}</textarea>
       <div class="flex gap-3 mt-4">
         <button @click="showWA=false" class="flex-1 bg-gray-100 text-gray-600 py-3 rounded-2xl text-sm font-semibold">Fermer</button>
-        <button @click="copyWA"       class="flex-1 bg-green-600 text-white py-3 rounded-2xl text-sm font-semibold hover:bg-green-700 shadow-sm">\ud83d\udccb Copier</button>
+        <button @click="copyWA"       class="flex-1 bg-gray-100 text-gray-700 py-3 rounded-2xl text-sm font-semibold">\ud83d\udccb Copier</button>
+        <button @click="shareWA"      class="flex-1 bg-green-600 text-white py-3 rounded-2xl text-sm font-semibold hover:bg-green-700 shadow-sm">\ud83d\udcf2 Partager</button>
       </div>
     </div>
   </div>
