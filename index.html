@@ -271,7 +271,7 @@ createApp({
     firstLogin(){if(this.demoMode)return false;const id=(this.loginForm.username||'').toLowerCase().trim();const u=this.users.find(x=>x.id===id);return !!u&&!u.password;},
     canUndo()   {return this.histIdx>0;},
     canRedo()   {return this.histIdx>=0&&this.histIdx<this.history.length-1;},
-    employees() {return this.users.filter(u=>u.role==='employee'&&u.active!==false);},   // actifs uniquement (les d\u00e9sactiv\u00e9s disparaissent partout)
+    employees() {return this.users.filter(u=>u.role==='employee'&&u.active!==false&&!(u.contractEnd&&u.contractEnd<todayStr()));},   // actifs : ni d\u00e9sactiv\u00e9s, ni contrat termin\u00e9 (sortis du d\u00e9compte, salaires inclus)
     allEmployees() {return this.users.filter(u=>u.role==='employee');},                  // tous, y compris d\u00e9sactiv\u00e9s (pour l'admin)
     showAteliers(){ return !!this.user; },   // chacun peut consulter/ajouter ses ateliers
     unread()    {return this.notifications.filter(n=>n.userId===this.user?.id&&!n.read).length;},
@@ -1187,7 +1187,7 @@ createApp({
     },
     // Cr\u00e9er un employ\u00e9
     slugId(name){let b=(name||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'').slice(0,12)||'emp';let id=b,i=2;while(this.users.some(u=>u.id===id)){id=b+i;i++;}return id;},
-    openNewEmp(){this.editEmp=null;this.newEmp={name:'',email:'',contractType:'CDI',hoursPerWeek:35,daysPerWeek:5,cpBalance:0,wage:12,cpRate:this.cpPerMonth,hasAteliers:false,jobRoles:[],poles:[],tipEligible:true,color:''};this.showNewEmp=true;},
+    openNewEmp(){this.editEmp=null;this.newEmp={name:'',email:'',contractType:'CDI',hoursPerWeek:35,daysPerWeek:5,cpBalance:0,wage:12,cpRate:this.cpPerMonth,hasAteliers:false,jobRoles:[],poles:[],tipEligible:true,color:'',contractStart:'',contractEnd:''};this.showNewEmp=true;},
     createEmp(){
       const f=this.newEmp;
       if(!f.name||!f.name.trim()){alert('Le nom est requis.');return;}
@@ -1197,6 +1197,7 @@ createApp({
         wage:+f.wage||0,cpRate:+f.cpRate||0,contractType:f.contractType||'CDI',
         jobRoles:Array.isArray(f.jobRoles)?[...f.jobRoles]:[],
         poles:Array.isArray(f.poles)?[...f.poles]:[],tipEligible:f.tipEligible!==false,color:f.color||'',active:true,
+        contractStart:f.contractStart||'',contractEnd:f.contractEnd||'',
         hasAteliers:!!f.hasAteliers,cpAccruedThru:monthKey(new Date())});
       this.commit();this.showNewEmp=false;
       alert('Employ\u00e9 cr\u00e9\u00e9 : '+f.name.trim()+' (identifiant de connexion : '+id+').');
@@ -1999,7 +2000,7 @@ createApp({
         <h2 class="font-semibold text-gray-800">Gestion des employ\u00e9s</h2>
         <button v-if="canAdmin" @click="openNewEmp" class="bg-green-600 text-white text-xs px-4 py-2 rounded-xl font-semibold shadow-sm hover:bg-green-700">+ Nouvel employ\u00e9</button>
       </div>
-      <div v-for="emp in users.filter(u=>u.role==='employee')" :key="emp.id" class="bg-white rounded-2xl border border-gray-200 p-4" :class="emp.active===false?'opacity-60':''">
+      <div v-for="emp in users.filter(u=>u.role==='employee')" :key="emp.id" class="bg-white rounded-2xl border border-gray-200 p-4" :class="(emp.active===false||(emp.contractEnd&&emp.contractEnd<todayStr()))?'opacity-60':''">
         <div v-if="!editEmp||editEmp.id!==emp.id">
           <div class="flex items-start justify-between">
             <div class="flex items-center gap-2.5">
@@ -2017,6 +2018,8 @@ createApp({
             <span class="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full font-medium">{{emp.role==='manager'?'Manager':'Employ\u00e9'}}</span>
             <span v-if="emp.admin" class="text-xs bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded-full font-semibold">\ud83d\udc51 Acc\u00e8s manager</span>
             <span class="text-xs px-2.5 py-1 rounded-full font-medium" :class="contractClr(emp.contractType)">{{emp.contractType||'CDI'}}</span>
+            <span v-if="emp.contractStart" class="text-xs bg-slate-50 text-slate-600 px-2.5 py-1 rounded-full font-medium">Depuis {{fmtShort(emp.contractStart)}}</span>
+            <span v-if="emp.contractEnd" class="text-xs px-2.5 py-1 rounded-full" :class="emp.contractEnd<todayStr()?'bg-red-100 text-red-700 font-semibold':'bg-amber-50 text-amber-700 font-medium'">{{emp.contractEnd<todayStr()?'Contrat termin\u00e9':'Fin pr\u00e9vue'}} {{fmtShort(emp.contractEnd)}}</span>
             <span class="text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full font-medium">{{emp.hoursPerWeek}}h/sem</span>
             <span class="text-xs bg-green-50 text-green-700 px-2.5 py-1 rounded-full font-medium">CP : {{emp.cpBalance}}j</span>
             <span v-if="emp.hasAteliers" class="text-xs bg-orange-50 text-orange-700 px-2.5 py-1 rounded-full font-medium">\ud83c\udf93 Ateliers</span>
@@ -2036,6 +2039,8 @@ createApp({
                 <option value="CDI">CDI</option><option value="CDD">CDD</option><option value="Freelance">Freelance</option><option value="Stage">Stage</option><option value="Alternance">Alternance</option>
               </select></div>
             <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Heures/sem</label><input v-model="empForm.hoursPerWeek" type="number" min="0" max="50" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
+            <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">D\u00e9but de contrat</label><input v-model="empForm.contractStart" type="date" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
+            <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Fin de contrat (optionnel)</label><input v-model="empForm.contractEnd" type="date" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
             <div class="col-span-2"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Jours travaill\u00e9s / sem (max CP/sem sur une plage)</label><input v-model="empForm.daysPerWeek" type="number" min="0" max="7" step="1" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
             <div class="col-span-2"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Solde CP (jours)</label><input v-model="empForm.cpBalance" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
             <div v-if="canSeeSalaries" class="col-span-2"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Taux horaire (\u20ac/h)</label><input v-model="empForm.wage" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
@@ -2349,6 +2354,8 @@ createApp({
           </select></div>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Heures/sem</label><input v-model="newEmp.hoursPerWeek" type="number" min="0" max="50" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Jours/sem</label><input v-model="newEmp.daysPerWeek" type="number" min="0" max="7" step="1" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
+        <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">D\u00e9but de contrat</label><input v-model="newEmp.contractStart" type="date" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
+        <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Fin (optionnel)</label><input v-model="newEmp.contractEnd" type="date" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
         <div v-if="canSeeSalaries"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Taux horaire (\u20ac/h)</label><input v-model="newEmp.wage" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">Solde CP</label><input v-model="newEmp.cpBalance" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">CP / mois</label><input v-model="newEmp.cpRate" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
