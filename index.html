@@ -63,6 +63,13 @@ const DAYS_SHORT = ['L','M','M','J','V','S','D'];
 const JOB_ROLES = [{v:'barista',l:'Barista'},{v:'animateur',l:'Animateur'},{v:'commis',l:'Commis'}];
 // P\u00f4les (cat\u00e9gories de regroupement dans les rapports) \u2014 cumulables, ind\u00e9pendants des r\u00f4les de remplacement
 const POLES = [{v:'barista',l:'Barista'},{v:'cuisine',l:'Cuisine'},{v:'salle',l:'Salle'},{v:'atelier',l:'Atelier'}];
+// R\u00f4le d'un shift : d\u00e9termine la couleur et le nom \u00ab pr\u00e9nom - r\u00f4le \u00bb. \u00c9ligibilit\u00e9 au remplacement = p\u00f4le correspondant.
+const SHIFT_ROLES = [{v:'barista',l:'Barista'},{v:'salle',l:'Salle'},{v:'cuisine',l:'Cuisine'}];
+const SHIFT_ROLE_STYLE = {
+  barista:{bg:'#7b4a2a',fg:'#ffffff',bd:'#7b4a2a'},   // marron
+  salle:  {bg:'#ffffff',fg:'#374151',bd:'#d1d5db'},   // blanc
+  cuisine:{bg:'#16a34a',fg:'#ffffff',bd:'#16a34a'},   // vert
+};
 
 const fmtLong  = d => d ? new Date(d+'T00:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}) : '';
 const fmtShort = d => d ? new Date(d+'T00:00:00').toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'}) : '';
@@ -256,7 +263,7 @@ createApp({
       history:[], histIdx:-1, histLock:false,
       // sync cloud
       online:false,
-      MONTHS, DAYS_SHORT, JOB_ROLES, POLES, PALETTE, todayStr,
+      MONTHS, DAYS_SHORT, JOB_ROLES, POLES, PALETTE, SHIFT_ROLES, todayStr,
     };
   },
 
@@ -934,20 +941,25 @@ createApp({
     rolesLabel(empId){const r=this.rolesOf(empId);return r.length?r.map(v=>this.roleLabel(v)).join(', '):'';},
     // \u00c9ligible si : le shift n'exige aucun r\u00f4le, OU la personne n'a aucun r\u00f4le d\u00e9fini, OU elle d\u00e9tient le r\u00f4le requis.
     canFillShift(empId,sh){
-      const req=sh&&sh.roleReq;
-      if(!req)return true;
-      const roles=this.rolesOf(empId);
-      if(!roles.length)return true;
-      return roles.includes(req);
+      const req=sh&&sh.role;                       // r\u00f4le du shift : barista / salle / cuisine
+      if(!req)return true;                         // shift sans r\u00f4le \u2192 ouvert \u00e0 tous
+      const poles=this.polesOf(empId);
+      if(!poles.length)return true;                // employ\u00e9 sans p\u00f4le d\u00e9fini \u2192 peut tout reprendre
+      return poles.includes(req);                  // sinon il faut avoir le p\u00f4le correspondant
     },
+    // R\u00f4le de shift : libell\u00e9, style couleur (barista marron / salle blanc / cuisine vert), nom \u00ab pr\u00e9nom - r\u00f4le \u00bb
+    shiftRoleLabel(v){const r=SHIFT_ROLES.find(x=>x.v===v);return r?r.l:v;},
+    shiftStyle(s){const c=SHIFT_ROLE_STYLE[s&&s.role]||{bg:'#e5e7eb',fg:'#374151',bd:'#d1d5db'};return 'background:'+c.bg+';color:'+c.fg+';border:1px solid '+c.bd+';';},
+    roleDot(v){const c=SHIFT_ROLE_STYLE[v]||{bg:'#e5e7eb',bd:'#d1d5db'};return 'background:'+c.bg+';border:1px solid '+c.bd+';';},
+    shiftTitle(s){const n=this.empName(s.employeeId);return (s&&s.role)?(n+' - '+this.shiftRoleLabel(s.role)):n;},
     toggleEmpRole(form,v){
       if(!Array.isArray(form.jobRoles))form.jobRoles=[];
       const i=form.jobRoles.indexOf(v);
       if(i>=0)form.jobRoles.splice(i,1);else form.jobRoles.push(v);
     },
 
-    openAddShift(date){this.editShift=null;this.shiftForm={employeeId:this.employees[0]?.id||'',date:date||todayStr(),start:'09:00',end:'17:00',roleReq:''};this.showShift=true;},
-    openEditShift(s){this.editShift=s;this.shiftForm={roleReq:'',...s};this.showShift=true;},
+    openAddShift(date){this.editShift=null;this.shiftForm={employeeId:this.employees[0]?.id||'',date:date||todayStr(),start:'09:00',end:'17:00',role:''};this.showShift=true;},
+    openEditShift(s){this.editShift=s;this.shiftForm={role:'',...s};this.showShift=true;},
     saveShift(){
       const f=this.shiftForm;
       if(!f.employeeId||!f.date||!f.start||!f.end)return;
@@ -1011,7 +1023,7 @@ createApp({
     respondSwap(rid,accept){
       const req=this.requests.find(r=>r.id===rid);if(!req)return;
       const shReq=this.shifts.find(x=>x.id===req.myShiftId);
-      if(accept&&shReq&&!this.canFillShift(this.user.id,shReq)){alert('Ce shift demande le r\u00f4le \u00ab '+this.roleLabel(shReq.roleReq)+' \u00bb que tu n\'as pas.');return;}
+      if(accept&&shReq&&!this.canFillShift(this.user.id,shReq)){alert('Ce shift \u00ab '+this.shiftRoleLabel(shReq.role)+' \u00bb ne peut \u00eatre repris que par le p\u00f4le correspondant.');return;}
       req.swapDecisions[this.user.id]=accept?'yes':'no';
       if(accept){
         const s=this.shifts.find(x=>x.id===req.myShiftId);if(s){s.coveredFor=req.employeeId;s.employeeId=this.user.id;this.save();}
@@ -1118,7 +1130,7 @@ createApp({
       if(sh&&!req.myShiftId)req.myShiftId=sh.id;   // m\u00e9morise le shift r\u00e9solu pour la suite (annulation, etc.)
       const d=req.dateFrom||req.date;
       if(sh&&this.onLeave(this.user.id,d)){alert('Tu es en absence valid\u00e9e le '+fmtShort(d)+'.');return;}
-      if(sh&&!this.canFillShift(this.user.id,sh)){alert('Ce shift demande le r\u00f4le \u00ab '+this.roleLabel(sh.roleReq)+' \u00bb que tu n\'as pas.');return;}
+      if(sh&&!this.canFillShift(this.user.id,sh)){alert('Ce shift \u00ab '+this.shiftRoleLabel(sh.role)+' \u00bb ne peut \u00eatre repris que par le p\u00f4le correspondant.');return;}
       if(sh&&this.overlaps(this.user.id,d,sh.start,sh.end,sh.id)){alert('Tu as d\u00e9j\u00e0 un shift qui chevauche ce cr\u00e9neau.');return;}
       if(!confirm(`Prendre le shift de ${this.empName(req.employeeId)} le ${fmtShort(d)}${sh?' ('+sh.start+'\u2013'+sh.end+')':''} ?`))return;
       if(sh){sh.coveredFor=req.employeeId;sh.employeeId=this.user.id;}
@@ -1508,7 +1520,7 @@ createApp({
             <div class="space-y-0.5">
               <div v-for="s in dayShiftsFor(day.ds).slice(0,3)" :key="s.id"
                 class="text-[9px] px-1 py-0.5 rounded truncate font-medium leading-tight"
-                :class="[empColor(s.employeeId).bg,empColor(s.employeeId).text]">
+                :style="shiftStyle(s)">
                 {{empName(s.employeeId).slice(0,7)}}
               </div>
               <div v-if="dayShiftsFor(day.ds).length>3" class="text-[9px] text-gray-400 pl-0.5">+{{dayShiftsFor(day.ds).length-3}}</div>
@@ -1622,10 +1634,10 @@ createApp({
                   :class="[day.isToday?'tb':'', day.isWeekend?'wb':'', isSelDay(day.ds)?'bg-blue-50':'', (targetCell&&targetCell.date===day.ds&&targetCell.hour===h)?'tgt':'']">
                   <div class="achips">
                     <template v-for="s in shiftsAt(day.ds,h)" :key="s.id">
-                      <div class="achip" :draggable="canEdit?'true':'false'" :class="[empColor(s.employeeId).bg,empColor(s.employeeId).text,isSelShift(s)?'sels':'']"
+                      <div class="achip" :draggable="canEdit?'true':'false'" :class="[isSelShift(s)?'sels':'']" :style="shiftStyle(s)"
                         @click.stop="pickShift(s)" @dblclick.stop="openEditShift(s)" @dragstart="onDragStart(s,$event)"
-                        :title="empName(s.employeeId)+' \u00b7 '+s.start+'\u2013'+s.end+(s.coveredFor?' \u00b7 remplace '+empName(s.coveredFor):'')">
-                        <span>{{empName(s.employeeId)}}</span><span v-if="s.coveredFor" style="opacity:.85" :title="'remplace '+empName(s.coveredFor)"> \u21a9{{empName(s.coveredFor)}}</span><span v-if="isShiftStart(s,h)" style="opacity:.7"> \u00b7 {{s.start}}</span>
+                        :title="shiftTitle(s)+' \u00b7 '+s.start+'\u2013'+s.end+(s.coveredFor?' \u00b7 remplace '+empName(s.coveredFor):'')">
+                        <span>{{shiftTitle(s)}}</span><span v-if="s.coveredFor" style="opacity:.85" :title="'remplace '+empName(s.coveredFor)"> \u21a9{{empName(s.coveredFor)}}</span><span v-if="isShiftStart(s,h)" style="opacity:.7"> \u00b7 {{s.start}}</span>
                       </div>
                     </template>
                   </div>
@@ -1716,7 +1728,7 @@ createApp({
             <div class="min-w-0">
               <p class="font-semibold text-gray-800 text-sm">{{empName(req.employeeId)}}</p>
               <p class="text-xs text-gray-600 mt-0.5">{{fmtShort(req.dateFrom||req.date)}}<span v-if="reqShift(req)"> \u00b7 {{reqShift(req).start}}\u2013{{reqShift(req).end}}</span> \u00b7 {{typeLabel(req.type)}}</p>
-              <p v-if="reqShift(req)&&reqShift(req).roleReq" class="text-[11px] text-violet-600 font-medium mt-0.5">R\u00f4le requis : {{roleLabel(reqShift(req).roleReq)}}</p>
+              <p v-if="reqShift(req)&&reqShift(req).role" class="text-[11px] text-violet-600 font-medium mt-0.5">R\u00f4le : {{shiftRoleLabel(reqShift(req).role)}} (p\u00f4le requis)</p>
             </div>
             <span class="ml-auto text-xs px-2.5 py-1 rounded-full font-semibold" :class="statusClr(req.status)">{{statusLabel(req.status)}}</span>
           </div>
@@ -2056,7 +2068,7 @@ createApp({
             <div class="col-span-2"><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">CP acquis / mois</label><input v-model="empForm.cpRate" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
           </div>
           <div>
-            <label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">R\u00f4les (aucun = peut tout remplacer)</label>
+            <label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">R\u00f4les (barista / animateur / commis \u2014 pour les ateliers)</label>
             <div class="flex flex-wrap gap-2">
               <button v-for="r in JOB_ROLES" :key="r.v" type="button" @click="toggleEmpRole(empForm,r.v)"
                 class="text-xs px-3 py-1.5 rounded-full font-semibold border transition-colors"
@@ -2183,11 +2195,11 @@ createApp({
       </div>
       <div class="overflow-y-auto flex-1 space-y-2.5 mb-4">
         <div v-if="dayShifts.length===0" class="text-center py-8 text-gray-400 text-sm">Aucun shift ce jour-l\u00e0</div>
-        <div v-for="s in dayShifts" :key="s.id" class="flex items-center justify-between p-3 rounded-2xl" :class="empColor(s.employeeId).bg">
+        <div v-for="s in dayShifts" :key="s.id" class="flex items-center justify-between p-3 rounded-2xl bg-gray-50 border border-gray-100">
           <div class="flex items-center gap-3">
-            <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" :class="[empColor(s.employeeId).bg,empColor(s.employeeId).text]" style="filter:brightness(.88)">{{empName(s.employeeId)[0]}}</div>
+            <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" :style="shiftStyle(s)">{{empName(s.employeeId)[0]}}</div>
             <div>
-              <p class="text-sm font-semibold" :class="empColor(s.employeeId).text">{{empName(s.employeeId)}}</p>
+              <p class="text-sm font-semibold text-gray-800">{{shiftTitle(s)}}</p>
               <p class="text-xs text-gray-500">{{s.start}} \u2013 {{s.end}}</p>
             </div>
           </div>
@@ -2211,14 +2223,19 @@ createApp({
       <div class="space-y-3">
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Employ\u00e9</label>
           <select v-model="shiftForm.employeeId" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
-            <option v-for="emp in employees" :key="emp.id" :value="emp.id">{{emp.name}}<span v-if="rolesLabel(emp.id)"> ({{rolesLabel(emp.id)}})</span></option>
+            <option v-for="emp in employees" :key="emp.id" :value="emp.id">{{emp.name}}</option>
           </select></div>
-        <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">R\u00f4le requis (pour un remplacement)</label>
-          <select v-model="shiftForm.roleReq" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
-            <option value="">\u2014 aucun (ouvert \u00e0 tous) \u2014</option>
-            <option v-for="r in JOB_ROLES" :key="r.v" :value="r.v">{{r.l}}</option>
-          </select>
-          <p class="text-[11px] text-gray-400 mt-1">Si un r\u00f4le est choisi, seuls les coll\u00e8gues ayant ce r\u00f4le pourront reprendre ce shift.</p></div>
+        <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">R\u00f4le</label>
+          <div class="flex flex-wrap gap-2">
+            <button v-for="r in SHIFT_ROLES" :key="r.v" type="button" @click="shiftForm.role=r.v"
+              class="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-semibold border transition-colors"
+              :class="shiftForm.role===r.v?'border-gray-800':'border-gray-200 text-gray-500'"
+              :style="shiftForm.role===r.v?shiftStyle({role:r.v}):''">
+              <span class="w-2.5 h-2.5 rounded-full" :style="roleDot(r.v)"></span>{{r.l}}
+            </button>
+            <button type="button" @click="shiftForm.role=''" class="text-xs px-3 py-1.5 rounded-full font-semibold border" :class="!shiftForm.role?'border-gray-800 bg-gray-100 text-gray-700':'border-gray-200 text-gray-400'">Aucun</button>
+          </div>
+          <p class="text-[11px] text-gray-400 mt-1">La couleur du shift et le nom \u00ab pr\u00e9nom - r\u00f4le \u00bb suivent ce r\u00f4le. Un remplacement n'est propos\u00e9 qu'aux coll\u00e8gues du p\u00f4le correspondant.</p></div>
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Date</label>
           <input v-model="shiftForm.date" type="date" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
         <div class="grid grid-cols-2 gap-3">
@@ -2370,7 +2387,7 @@ createApp({
         <div><label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1">CP / mois</label><input v-model="newEmp.cpRate" type="number" step="0.5" min="0" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"/></div>
       </div>
       <div class="mt-3">
-        <label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">R\u00f4les (aucun = peut tout remplacer)</label>
+        <label class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">R\u00f4les (barista / animateur / commis \u2014 pour les ateliers)</label>
         <div class="flex flex-wrap gap-2">
           <button v-for="r in JOB_ROLES" :key="r.v" type="button" @click="toggleEmpRole(newEmp,r.v)"
             class="text-xs px-3 py-1.5 rounded-full font-semibold border transition-colors"
