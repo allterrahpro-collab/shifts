@@ -280,8 +280,9 @@ createApp({
   },
 
   computed:{
-    isManager() {return this.user?.role==='manager';},
-    isPatron()  {return this.user?.role==='patron';},
+    // Julien (patron) a exactement les m\u00eames droits que Dan (manager) : planning, \u00e9dition, admin, salaires, pourboires.
+    isManager() {return this.user?.role==='manager'||this.user?.role==='patron';},
+    isPatron()  {return false;},   // l'ancienne vue \u00ab patron seul \u00bb (lecture seule, arriv\u00e9e sur Rapports) est d\u00e9sactiv\u00e9e
     isEmployee(){return this.user?.role==='employee';},
     canEdit()   {return this.isManager||!!this.user?.admin;},
     canAdmin()  {return this.isManager||this.isPatron||!!this.user?.admin;},
