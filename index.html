@@ -74,11 +74,12 @@ const JOB_ROLES = [{v:'barista',l:'Barista'},{v:'animateur',l:'Animateur'},{v:'c
 // P\u00f4les (cat\u00e9gories de regroupement dans les rapports) \u2014 cumulables, ind\u00e9pendants des r\u00f4les de remplacement
 const POLES = [{v:'barista',l:'Barista'},{v:'cuisine',l:'Cuisine'},{v:'salle',l:'Salle'},{v:'atelier',l:'Atelier'}];
 // R\u00f4le d'un shift : d\u00e9termine la couleur et le nom \u00ab pr\u00e9nom - r\u00f4le \u00bb. \u00c9ligibilit\u00e9 au remplacement = p\u00f4le correspondant.
-const SHIFT_ROLES = [{v:'barista',l:'Barista'},{v:'salle',l:'Salle'},{v:'cuisine',l:'Cuisine'}];
+const SHIFT_ROLES = [{v:'barista',l:'Barista'},{v:'salle',l:'Salle'},{v:'cuisine',l:'Cuisine'},{v:'corpo',l:'Corporate'}];
 const SHIFT_ROLE_STYLE = {
   barista:{bg:'#2563eb',fg:'#ffffff',bd:'#2563eb'},   // bleu
   salle:  {bg:'#ec4899',fg:'#ffffff',bd:'#ec4899'},   // rose
   cuisine:{bg:'#facc15',fg:'#1f2937',bd:'#eab308'},   // jaune (texte fonc\u00e9 pour lisibilit\u00e9)
+  corpo:  {bg:'#475569',fg:'#ffffff',bd:'#475569'},   // gris ardoise (corporate)
 };
 
 const fmtLong  = d => d ? new Date(d+'T00:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}) : '';
@@ -280,9 +281,8 @@ createApp({
   },
 
   computed:{
-    // Julien (patron) a exactement les m\u00eames droits que Dan (manager) : planning, \u00e9dition, admin, salaires, pourboires.
-    isManager() {return this.user?.role==='manager'||this.user?.role==='patron';},
-    isPatron()  {return false;},   // l'ancienne vue \u00ab patron seul \u00bb (lecture seule, arriv\u00e9e sur Rapports) est d\u00e9sactiv\u00e9e
+    isManager() {return this.user?.role==='manager';},
+    isPatron()  {return this.user?.role==='patron';},
     isEmployee(){return this.user?.role==='employee';},
     canEdit()   {return this.isManager||!!this.user?.admin;},
     canAdmin()  {return this.isManager||this.isPatron||!!this.user?.admin;},
@@ -477,7 +477,8 @@ createApp({
       const total=entry?+entry.amount:0;
 
       const empData=this.employees.filter(emp=>emp.tipEligible!==false).map(emp=>{   // seuls les \u00e9ligibles aux pourboires
-        const ws=this.shifts.filter(s=>{const d=new Date(s.date);return s.employeeId===emp.id&&d.getFullYear()===y&&d.getMonth()===m;});
+        // shifts du mois comptant pour les pourboires : bar/salle/cuisine, PAS corporate
+        const ws=this.shifts.filter(s=>{const d=new Date(s.date);return s.employeeId===emp.id&&s.role!=='corpo'&&d.getFullYear()===y&&d.getMonth()===m;});
         const wkndH=Math.round(ws.filter(s=>isWeekend(s.date)).reduce((a,x)=>a+diffH(x.start,x.end),0)*10)/10;
         const wkdyH=Math.round(ws.filter(s=>!isWeekend(s.date)).reduce((a,x)=>a+diffH(x.start,x.end),0)*10)/10;
         const weighted=Math.round((wkdyH+wkndH*2)*10)/10;   // weekend \u00d72
